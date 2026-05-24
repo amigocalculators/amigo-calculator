@@ -26,10 +26,10 @@ const ContactForm: React.FC<ContactFormProps> = ({ isOpen, onClose }) => {
 
     emailjs
       .sendForm(
-        'service_nqquops',
-        'template_ekpugfo',
+        process.env.NEXT_PUBLIC_EMAILJS_CONTACT_SERVICE_ID!,
+        process.env.NEXT_PUBLIC_EMAILJS_CONTACT_TEMPLATE_ID!,
         formRef.current!,
-        'glE0qmOrhTVfgaqHt'
+        process.env.NEXT_PUBLIC_EMAILJS_CONTACT_PUBLIC_KEY!
       )
       .then(
         () => {

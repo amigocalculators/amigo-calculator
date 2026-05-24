@@ -5,7 +5,6 @@ import { CartItem } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { useRouter } from 'next/navigation';
 import { CreditCard, MapPin, User, Shield, Truck, Package, Gift, Tag, Percent } from 'lucide-react';
-import emailjs from '@emailjs/browser';
 
 declare global {
   interface Window {
@@ -17,11 +16,13 @@ interface RazorpayOptions {
   key: string;
   amount: number;
   currency: string;
+  order_id: string;
   name: string;
   description: string;
-  handler: (response: { razorpay_payment_id: string }) => void;
+  handler: (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => void;
   prefill: { name: string; email: string; contact: string };
   theme: { color: string };
+  modal?: { ondismiss?: () => void };
 }
 
 const indianStates = [
@@ -55,6 +56,7 @@ const calculatePromotion = (cart: CartItem[]) => {
 export default function CheckoutPage() {
   const { cart, clearCart } = useCartStore();
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
   const [customerDetails, setCustomerDetails] = useState({
     name: '', email: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
@@ -73,57 +75,94 @@ export default function CheckoutPage() {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const finalTotal = subtotal - promotion.promotionDiscount;
 
-  const handleCheckout = async (e: React.FormEvent) => {
+  const handleCheckout = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    setLoading(true);
 
-    const options: RazorpayOptions = {
-      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY!,
-      amount: Math.round(finalTotal * 100),
-      currency: 'INR',
-      name: 'Amigo Calculator',
-      description: 'Purchase from Amigo Calculator',
-      handler: function (response) {
-        const paymentDetails = {
-          status: 'success',
-          paymentId: response.razorpay_payment_id,
-          orderId: 'ORD' + Date.now(),
+    try {
+      // Step 1: Create a Razorpay order server-side + save pending order to DB
+      const orderRes = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           amount: finalTotal,
-          method: 'Razorpay',
-        };
+          customerDetails,
+          cart,
+          subtotal,
+          discount: promotion.promotionDiscount,
+          total: finalTotal,
+        }),
+      });
 
-        const fullAddress = `${customerDetails.addressLine1}, ${customerDetails.addressLine2}, ${customerDetails.city}, ${customerDetails.state} - ${customerDetails.pincode}`;
+      if (!orderRes.ok) throw new Error('Failed to create order');
+      const { orderId, amount, currency } = await orderRes.json();
 
-        emailjs
-          .send(
-            process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
-            process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
-            {
-              to_name: customerDetails.name,
-              to_email: customerDetails.email,
-              order_id: response.razorpay_payment_id,
-              amount: finalTotal,
-              items: cart.map((item) => `${item.name} (${item.quantity})`).join(', '),
-              address: fullAddress,
-              phone: customerDetails.phone,
-            },
-            process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!
-          )
-          .then(() => {
-            clearCart();
-            sessionStorage.setItem('paymentDetails', JSON.stringify(paymentDetails));
-            router.push('/payment-status');
-          })
-          .catch(() => {
-            sessionStorage.setItem('paymentDetails', JSON.stringify(paymentDetails));
-            router.push('/payment-status');
+      // Step 2: Open Razorpay widget with the server-created order ID
+      const options: RazorpayOptions = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY!,
+        amount,
+        currency,
+        order_id: orderId,
+        name: 'Amigo Calculator',
+        description: 'Purchase from Amigo Calculator',
+        handler: async function (response) {
+          // Step 3: Verify payment signature server-side + confirm order in DB
+          const verifyRes = await fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              customerDetails,
+              cart,
+              subtotal,
+              discount: promotion.promotionDiscount,
+              total: finalTotal,
+            }),
           });
-      },
-      prefill: { name: customerDetails.name, email: customerDetails.email, contact: customerDetails.phone },
-      theme: { color: '#2563EB' },
-    };
 
-    const rzp = new window.Razorpay(options);
-    rzp.open();
+          const result = await verifyRes.json();
+
+          if (verifyRes.ok) {
+            clearCart();
+            sessionStorage.setItem('paymentDetails', JSON.stringify({
+              status: 'success',
+              paymentId: response.razorpay_payment_id,
+              orderId: result.orderId ?? 'ORD' + Date.now(),
+              amount: finalTotal,
+              method: 'Razorpay',
+            }));
+          } else {
+            // Payment went through on Razorpay but our verification failed.
+            // The webhook will reconcile this. Show error with payment ID for support.
+            sessionStorage.setItem('paymentDetails', JSON.stringify({
+              status: 'error',
+              paymentId: response.razorpay_payment_id,
+              orderId: 'ORD' + Date.now(),
+              amount: finalTotal,
+              method: 'Razorpay',
+              failureReason: `Payment received but verification failed. Please contact support with Payment ID: ${response.razorpay_payment_id}`,
+            }));
+          }
+          router.push('/payment-status');
+        },
+        prefill: { name: customerDetails.name, email: customerDetails.email, contact: customerDetails.phone },
+        theme: { color: '#2563EB' },
+        modal: {
+          ondismiss: () => {
+            // User closed the Razorpay modal without completing payment — cart is intact
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error('Checkout error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (cart.length === 0) {
@@ -232,7 +271,7 @@ export default function CheckoutPage() {
               </h2>
 
               {promotion.isEligible && (
-                <div className="mb-6 p-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl text-white">
+                <div className="mb-6 p-4 bg-linear-to-r from-pink-500 to-purple-600 rounded-xl text-white">
                   <div className="flex items-center gap-2 mb-2">
                     <Tag className="w-5 h-5" />
                     <span className="font-bold">Buy 2 Get 1 FREE!</span>
@@ -250,7 +289,7 @@ export default function CheckoutPage() {
                   return (
                     <div key={item.id} className="relative">
                       <div className={`flex items-center gap-4 p-4 rounded-lg transition-all duration-200 ${
-                        freeCount > 0 ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200' : 'bg-gray-50'
+                        freeCount > 0 ? 'bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-200' : 'bg-gray-50'
                       }`}>
                         <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
                         <div className="flex-1">
@@ -310,13 +349,13 @@ export default function CheckoutPage() {
                 </div>
                 <button
                   onClick={handleCheckout}
-                  disabled={!isPersonalInfoComplete()}
+                  disabled={!isPersonalInfoComplete() || loading}
                   className={`w-full py-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${
-                    isPersonalInfoComplete() ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    isPersonalInfoComplete() && !loading ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-400 text-gray-200 cursor-not-allowed'
                   }`}
                 >
                   <CreditCard className="w-5 h-5" />
-                  Pay ₹{finalTotal.toFixed(2)}
+                  {loading ? 'Processing...' : `Pay ₹${finalTotal.toFixed(2)}`}
                 </button>
               </div>
             </div>

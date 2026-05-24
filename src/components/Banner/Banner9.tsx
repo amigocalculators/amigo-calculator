@@ -1,16 +1,17 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { products } from '@/data/products';
 import { ShoppingCart } from 'lucide-react';
 import { Product } from '@/types';
 
 interface Banner9Props {
+  products: Product[];
   currentProductId?: number;
 }
 
-const Banner9 = ({ currentProductId }: Banner9Props) => {
+const Banner9 = ({ products, currentProductId }: Banner9Props) => {
   const router = useRouter();
 
   const relatedProducts = products
@@ -30,10 +31,12 @@ const Banner9 = ({ currentProductId }: Banner9Props) => {
               key={product.id}
               className="bg-gray-200 rounded-xl overflow-hidden shadow-[5px_5px_15px_rgba(0,0,0,0.1),-5px_-5px_15px_rgba(255,255,255,0.8)] p-0 lg:p-4 transition-all duration-300 hover:shadow-[8px_8px_20px_rgba(0,0,0,0.12),-8px_-8px_20px_rgba(255,255,255,0.9)]"
             >
-              <Link href={`/product/${product.id}`} className="rounded-lg overflow-hidden mb-2 h-48 sm:h-56 block">
-                <img
+              <Link href={`/product/${product.id}`} className="rounded-lg overflow-hidden mb-2 h-48 sm:h-56 block relative">
+                <Image
                   src={product.image}
                   alt={product.name}
+                  fill
+                  sizes="(max-width: 640px) 50vw, 25vw"
                   className="object-cover transform group-hover:scale-105 transition-transform duration-300"
                 />
               </Link>

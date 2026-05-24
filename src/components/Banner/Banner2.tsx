@@ -1,39 +1,54 @@
+import Image from 'next/image';
 import Banner9 from './Banner9';
 import { ShoppingBag, Truck, Shield, HeadphonesIcon as HeadphoneIcon } from 'lucide-react';
+import { Product } from '@/types';
 
-const Banner2 = () => {
+const Banner2 = ({ products }: { products: Product[] }) => {
   return (
     <>
       <div className="w-full pb-4">
         {/* Desktop Banner */}
-        <img
-          src="/Image/Banner/Home1.jpg"
-          alt="Amigo Calculator Desktop Banner"
-          className="hidden md:block w-full h-[500px] object-cover"
-        />
+        <div className="hidden md:block w-full h-[500px] relative">
+          <Image
+            src="/Image/Banner/Home1.jpg"
+            alt="Amigo Calculator Desktop Banner"
+            fill
+            className="object-cover"
+            priority
+          />
+        </div>
         {/* Mobile Banner */}
-        <img
+        <Image
           src="/Image/Banner/CONCEPT-7.1.JPLL.jpg"
           alt="Amigo Calculator Mobile Banner"
+          width={800}
+          height={600}
           className="block md:hidden w-full h-auto object-cover"
+          priority
         />
       </div>
 
-      <Banner9 />
+      <Banner9 products={products} />
 
       <div className="w-full pb-4">
         {/* Desktop Banner */}
-        <img
-          src="/Image/Banner/Home2.jpg"
-          alt="Amigo Calculator Desktop Banner"
-          className="hidden md:block w-full h-[600px] object-cover"
-        />
+        <div className="hidden md:block w-full h-[600px] relative">
+          <Image
+            src="/Image/Banner/Home2.jpg"
+            alt="Amigo Calculator Desktop Banner"
+            fill
+            className="object-cover"
+          />
+        </div>
         {/* Mobile Banner */}
-        <img
-          src="/Image/Banner/BANNER BM1.JPLL.jpg"
-          alt="Amigo Calculator Mobile Banner"
-          className="block md:hidden w-full h-[300px] object-cover"
-        />
+        <div className="block md:hidden w-full h-[300px] relative">
+          <Image
+            src="/Image/Banner/BANNER BM1.JPLL.jpg"
+            alt="Amigo Calculator Mobile Banner"
+            fill
+            className="object-cover"
+          />
+        </div>
       </div>
 
       {/* Features Section */}
