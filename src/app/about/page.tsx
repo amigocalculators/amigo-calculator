@@ -32,6 +32,7 @@ export default function AboutPage() {
           </p>
         </div>
         <div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="https://images.unsplash.com/photo-1497366754035-f200968a6e72"
             alt="Our Store"

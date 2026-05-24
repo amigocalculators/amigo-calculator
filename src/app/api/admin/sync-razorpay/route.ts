@@ -32,12 +32,15 @@ export async function POST() {
   );
 
   // Fetch captured payments from Razorpay (max 100 per call; extend if needed)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let allPayments: any[] = [];
   let skip = 0;
   const count = 100;
 
   while (true) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await razorpay.payments.all({ count, skip }) as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const items: any[] = response?.items ?? [];
     if (items.length === 0) break;
     allPayments = allPayments.concat(items);

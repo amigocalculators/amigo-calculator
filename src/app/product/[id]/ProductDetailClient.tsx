@@ -15,7 +15,6 @@ import {
   Package,
   ChevronRight,
   Check,
-  ArrowLeft,
   Facebook,
   Twitter,
   Linkedin,
