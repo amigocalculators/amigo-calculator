@@ -84,7 +84,7 @@ export async function POST() {
       };
     });
 
-    const { error } = await supabase.from('orders').insert(rows);
+    const { error } = await supabase.from('orders').upsert(rows, { onConflict: 'razorpay_order_id', ignoreDuplicates: true });
 
     if (error) {
       console.error('Supabase insert error:', error);

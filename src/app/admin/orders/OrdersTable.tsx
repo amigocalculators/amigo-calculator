@@ -48,6 +48,10 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
     try {
       const res = await fetch('/api/admin/sync-razorpay', { method: 'POST' });
       const data = await res.json();
+      if (!res.ok) {
+        setSyncMessage(`Error: ${data.error ?? 'Sync failed.'}`);
+        return;
+      }
       setSyncMessage(data.message ?? 'Done.');
       if (data.synced > 0) {
         // Reload to show new orders
