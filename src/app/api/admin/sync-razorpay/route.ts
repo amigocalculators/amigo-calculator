@@ -93,8 +93,18 @@ export async function POST() {
 
     return NextResponse.json({ synced: rows.length, message: `Synced ${rows.length} order(s) from Razorpay.` });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('sync-razorpay error:', message);
+    // Razorpay SDK throws plain objects, not Error instances
+    let message: string;
+    if (err instanceof Error) {
+      message = err.message;
+    } else if (err && typeof err === 'object') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const e = err as any;
+      message = e?.error?.description ?? e?.description ?? e?.message ?? JSON.stringify(err);
+    } else {
+      message = String(err);
+    }
+    console.error('sync-razorpay error:', err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
