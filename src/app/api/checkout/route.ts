@@ -20,6 +20,16 @@ export async function POST(req: NextRequest) {
       amount: Math.round(amount * 100), // paise
       currency: 'INR',
       receipt: 'receipt_' + Date.now(),
+      notes: customerDetails ? {
+        customer_name: customerDetails.name,
+        email: customerDetails.email,
+        phone: customerDetails.phone,
+        addressLine1: customerDetails.addressLine1,
+        addressLine2: customerDetails.addressLine2 ?? '',
+        city: customerDetails.city,
+        state: customerDetails.state,
+        pincode: customerDetails.pincode,
+      } : undefined,
     });
 
     // Save a pending order to Supabase so the webhook can confirm it
