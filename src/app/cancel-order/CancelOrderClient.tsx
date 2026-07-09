@@ -40,7 +40,7 @@ export default function CancelOrderClient({ order }: { order: Order }) {
             <AlertTriangle className="w-8 h-8 text-yellow-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-3">Order Not Found</h1>
-          <p className="text-gray-500">We couldn't find your order. The link may be invalid or expired.</p>
+          <p className="text-gray-500">We couldn&apos;t find your order. The link may be invalid or expired.</p>
         </div>
       </div>
     );
