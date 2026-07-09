@@ -58,10 +58,15 @@ export async function POST(req: NextRequest) {
       cancel_url: cancelUrl,
     });
 
-    await Promise.all([
+    const [r1, r2] = await Promise.all([
       sendEmail({ ...emailBase, template_params: templateParams(order.customer_name, order.customer_email) }),
       sendEmail({ ...emailBase, template_params: templateParams('Amigo Team', 'enquiry@amigocalculator.info') }),
     ]);
+
+    const body1 = await r1.text();
+    const body2 = await r2.text();
+    console.log('EmailJS response 1:', r1.status, body1);
+    console.log('EmailJS response 2:', r2.status, body2);
 
     return NextResponse.json({ success: true });
   } catch (err) {
