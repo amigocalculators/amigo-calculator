@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
         service_id: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
         template_id: process.env.NEXT_PUBLIC_EMAILJS_STATUS_TEMPLATE_ID,
         user_id: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY,
+        accessToken: process.env.EMAILJS_PRIVATE_KEY,
         template_params: {
           to_name: order.customer_name,
           to_email: order.customer_email,
