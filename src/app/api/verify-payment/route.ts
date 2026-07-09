@@ -70,6 +70,9 @@ export async function POST(req: NextRequest) {
     // 3. Send confirmation email via EmailJS REST API (to customer + business owner)
     const fullAddress = `${customerDetails.addressLine1}, ${customerDetails.addressLine2 ? customerDetails.addressLine2 + ', ' : ''}${customerDetails.city}, ${customerDetails.state} - ${customerDetails.pincode}`;
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://amigocalculator.info';
+    const cancelUrl = `${siteUrl}/cancel-order?oid=${razorpay_order_id}`;
+
     const emailPayload = (toName: string, toEmail: string) => ({
       service_id: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
       template_id: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
@@ -84,6 +87,7 @@ export async function POST(req: NextRequest) {
         phone: customerDetails.phone,
         customer_name: customerDetails.name,
         customer_email: customerDetails.email,
+        cancel_url: cancelUrl,
       },
     });
 

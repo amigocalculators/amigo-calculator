@@ -1,17 +1,24 @@
 'use client';
 
 import React, { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { ChevronDown, RefreshCw, Search } from 'lucide-react';
 
-const STATUSES = ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
-
 const statusColors: Record<string, string> = {
-  confirmed: 'bg-blue-100 text-blue-700',
+  confirmed:  'bg-blue-100 text-blue-700',
   processing: 'bg-yellow-100 text-yellow-700',
-  shipped: 'bg-purple-100 text-purple-700',
-  delivered: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
+  shipped:    'bg-purple-100 text-purple-700',
+  delivered:  'bg-green-100 text-green-700',
+  cancelled:  'bg-red-100 text-red-700',
+};
+
+// Only statuses reachable from the current one — final states have no options
+const NEXT_STATUSES: Record<string, string[]> = {
+  pending:    ['confirmed'],
+  confirmed:  ['processing', 'cancelled'],
+  processing: ['shipped', 'cancelled'],
+  shipped:    ['delivered'],
+  delivered:  [],
+  cancelled:  [],
 };
 
 type Order = {
@@ -35,11 +42,29 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
   const [expanded, setExpanded] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
-  const supabase = createClient();
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<Record<string, string>>({});
 
-  const updateStatus = async (orderId: string, status: string) => {
-    await supabase.from('orders').update({ status }).eq('id', orderId);
-    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
+  const updateStatus = async (orderId: string, newStatus: string) => {
+    setUpdatingId(orderId);
+    setStatusError((prev) => ({ ...prev, [orderId]: '' }));
+    try {
+      const res = await fetch('/api/admin/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatusError((prev) => ({ ...prev, [orderId]: data.error ?? 'Update failed.' }));
+        return;
+      }
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)));
+    } catch {
+      setStatusError((prev) => ({ ...prev, [orderId]: 'Network error. Try again.' }));
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   const syncFromRazorpay = async () => {
@@ -54,7 +79,6 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
       }
       setSyncMessage(data.message ?? 'Done.');
       if (data.synced > 0) {
-        // Reload to show new orders
         window.location.reload();
       }
     } catch {
@@ -113,78 +137,106 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((order) => (
-                <React.Fragment key={order.id}>
-                  <tr className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{order.customer_name}</p>
-                      <p className="text-gray-500 text-xs">{order.customer_email}</p>
-                      <p className="text-gray-500 text-xs">{order.customer_phone}</p>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {order.items.map((i) => `${i.name} ×${i.quantity}`).join(', ')}
-                    </td>
-                    <td className="px-4 py-3 font-medium">
-                      ₹{Number(order.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      {Number(order.discount) > 0 && (
-                        <p className="text-green-600 text-xs">-₹{Number(order.discount).toFixed(2)} off</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="relative inline-block">
-                        <select
-                          value={order.status}
-                          onChange={(e) => updateStatus(order.id, e.target.value)}
-                          className={`appearance-none pr-6 pl-2 py-1 rounded-full text-xs font-medium cursor-pointer border-0 outline-none ${statusColors[order.status] ?? 'bg-gray-100 text-gray-600'}`}
-                        >
-                          {STATUSES.map((s) => (
-                            <option key={s} value={s} className="bg-white text-gray-900 capitalize">{s}</option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">
-                      {new Date(order.created_at).toLocaleDateString('en-IN')}<br />
-                      {new Date(order.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => setExpanded(expanded === order.id ? null : order.id)}
-                        className="text-blue-600 hover:underline text-xs"
-                      >
-                        {expanded === order.id ? 'Hide' : 'Details'}
-                      </button>
-                    </td>
-                  </tr>
-                  {expanded === order.id && (
-                    <tr key={`${order.id}-detail`} className="bg-blue-50">
-                      <td colSpan={6} className="px-4 py-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="font-medium mb-1">Shipping Address</p>
-                            <p className="text-gray-600">
-                              {order.address.line1}{order.address.line2 ? `, ${order.address.line2}` : ''}<br />
-                              {order.address.city}, {order.address.state} — {order.address.pincode}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="font-medium mb-1">Payment ID</p>
-                            <p className="text-gray-600 font-mono text-xs">{order.razorpay_payment_id}</p>
-                            <p className="font-medium mt-3 mb-1">Items</p>
-                            {order.items.map((item, i) => (
-                              <div key={i} className="flex items-center gap-2 mb-1">
-                                <img src={item.image} alt={item.name} className="w-8 h-8 object-cover rounded" />
-                                <span>{item.name} ×{item.quantity} — ₹{(item.price * item.quantity).toFixed(2)}</span>
-                              </div>
-                            ))}
-                          </div>
+              {filtered.map((order) => {
+                const nextOptions = NEXT_STATUSES[order.status] ?? [];
+                const isFinal = nextOptions.length === 0;
+                const isUpdating = updatingId === order.id;
+
+                return (
+                  <React.Fragment key={order.id}>
+                    <tr className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{order.customer_name}</p>
+                        <p className="text-gray-500 text-xs">{order.customer_email}</p>
+                        <p className="text-gray-500 text-xs">{order.customer_phone}</p>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {order.items.map((i) => `${i.name} ×${i.quantity}`).join(', ')}
+                      </td>
+                      <td className="px-4 py-3 font-medium">
+                        ₹{Number(order.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        {Number(order.discount) > 0 && (
+                          <p className="text-green-600 text-xs">-₹{Number(order.discount).toFixed(2)} off</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="space-y-1">
+                          {isFinal ? (
+                            // Final state — just show a badge, no dropdown
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium capitalize ${statusColors[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                              {order.status}
+                            </span>
+                          ) : (
+                            <div className="relative inline-block">
+                              <select
+                                value={order.status}
+                                disabled={isUpdating}
+                                onChange={(e) => updateStatus(order.id, e.target.value)}
+                                className={`appearance-none pr-6 pl-2 py-1 rounded-full text-xs font-medium cursor-pointer border-0 outline-none disabled:opacity-60 ${statusColors[order.status] ?? 'bg-gray-100 text-gray-600'}`}
+                              >
+                                {/* Current status always shown first */}
+                                <option value={order.status} className="bg-white text-gray-900 capitalize">
+                                  {order.status}
+                                </option>
+                                {nextOptions.map((s) => (
+                                  <option key={s} value={s} className="bg-white text-gray-900 capitalize">
+                                    {s}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" />
+                            </div>
+                          )}
+                          {isUpdating && (
+                            <p className="text-xs text-blue-600">Updating…</p>
+                          )}
+                          {statusError[order.id] && (
+                            <p className="text-xs text-red-600">{statusError[order.id]}</p>
+                          )}
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">
+                        {new Date(order.created_at).toLocaleDateString('en-IN')}<br />
+                        {new Date(order.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => setExpanded(expanded === order.id ? null : order.id)}
+                          className="text-blue-600 hover:underline text-xs"
+                        >
+                          {expanded === order.id ? 'Hide' : 'Details'}
+                        </button>
+                      </td>
                     </tr>
-                  )}
-                </React.Fragment>
-              ))}
+                    {expanded === order.id && (
+                      <tr key={`${order.id}-detail`} className="bg-blue-50">
+                        <td colSpan={6} className="px-4 py-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="font-medium mb-1">Shipping Address</p>
+                              <p className="text-gray-600">
+                                {order.address.line1}{order.address.line2 ? `, ${order.address.line2}` : ''}<br />
+                                {order.address.city}, {order.address.state} — {order.address.pincode}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="font-medium mb-1">Payment ID</p>
+                              <p className="text-gray-600 font-mono text-xs">{order.razorpay_payment_id}</p>
+                              <p className="font-medium mt-3 mb-1">Items</p>
+                              {order.items.map((item, i) => (
+                                <div key={i} className="flex items-center gap-2 mb-1">
+                                  <img src={item.image} alt={item.name} className="w-8 h-8 object-cover rounded" />
+                                  <span>{item.name} ×{item.quantity} — ₹{(item.price * item.quantity).toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
