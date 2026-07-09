@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, RefreshCw, Search } from 'lucide-react';
+import { ChevronDown, RefreshCw, Search, Mail } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
   confirmed:  'bg-blue-100 text-blue-700',
@@ -44,6 +44,8 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
   const [syncMessage, setSyncMessage] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<Record<string, string>>({});
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendMessage, setResendMessage] = useState<Record<string, string>>({});
 
   const updateStatus = async (orderId: string, newStatus: string) => {
     setUpdatingId(orderId);
@@ -64,6 +66,27 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
       setStatusError((prev) => ({ ...prev, [orderId]: 'Network error. Try again.' }));
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const resendEmail = async (orderId: string) => {
+    setResendingId(orderId);
+    setResendMessage((prev) => ({ ...prev, [orderId]: '' }));
+    try {
+      const res = await fetch('/api/admin/resend-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      setResendMessage((prev) => ({
+        ...prev,
+        [orderId]: res.ok ? 'Sent!' : (data.error ?? 'Failed.'),
+      }));
+    } catch {
+      setResendMessage((prev) => ({ ...prev, [orderId]: 'Failed.' }));
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -200,12 +223,27 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
                         {new Date(order.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => setExpanded(expanded === order.id ? null : order.id)}
-                          className="text-blue-600 hover:underline text-xs"
-                        >
-                          {expanded === order.id ? 'Hide' : 'Details'}
-                        </button>
+                        <div className="flex flex-col gap-1 items-start">
+                          <button
+                            onClick={() => setExpanded(expanded === order.id ? null : order.id)}
+                            className="text-blue-600 hover:underline text-xs"
+                          >
+                            {expanded === order.id ? 'Hide' : 'Details'}
+                          </button>
+                          <button
+                            onClick={() => resendEmail(order.id)}
+                            disabled={resendingId === order.id}
+                            className="flex items-center gap-1 text-gray-500 hover:text-blue-600 text-xs disabled:opacity-50"
+                          >
+                            <Mail className="w-3 h-3" />
+                            {resendingId === order.id ? 'Sending…' : 'Resend Email'}
+                          </button>
+                          {resendMessage[order.id] && (
+                            <span className={`text-xs ${resendMessage[order.id] === 'Sent!' ? 'text-green-600' : 'text-red-500'}`}>
+                              {resendMessage[order.id]}
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                     {expanded === order.id && (
