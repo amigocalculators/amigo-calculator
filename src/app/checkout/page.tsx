@@ -77,11 +77,14 @@ export default function CheckoutPage() {
     return name.trim() !== '' && email.trim() !== '' && phone.trim().length === 10;
   };
 
-  const promotion = calculatePromotion(cart);
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const finalTotal = subtotal - promotion.promotionDiscount;
   const giftItem = giftPromotion && cart.length > 0 ? buildFreeGiftItem(giftPromotion, cart) : null;
   const displayCart = giftItem ? [...cart, giftItem] : cart;
+  // The two offers don't stack — while a gift promotion applies, the evergreen Buy 2 Get 1 discount is suppressed.
+  const promotion = giftItem
+    ? { isEligible: false, freeItems: [] as { id: number; price: number; originalId: number }[], promotionDiscount: 0, groupsOf3: 0 }
+    : calculatePromotion(cart);
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const finalTotal = subtotal - promotion.promotionDiscount;
 
   const handleCheckout = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
