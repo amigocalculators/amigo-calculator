@@ -1,7 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import Banner2 from '@/components/Banner/Banner2';
 import Banner10 from '@/components/Banner/Banner10';
-import PromotionBanner from '@/components/Banner/PromotionBanner';
 import PopupWrapper from '@/components/PopupWrapper';
 
 export default async function Home() {
@@ -16,10 +15,9 @@ export default async function Home() {
   return (
     <div className="pt-16 bg-[#f0efef]">
       <div className="max-w-[95rem] mx-auto">
-        {activePromotion && <PromotionBanner promotion={activePromotion} />}
         <Banner10 />
         <Banner2 products={products} />
-        <PopupWrapper />
+        <PopupWrapper promotion={activePromotion} />
       </div>
     </div>
   );

@@ -38,3 +38,7 @@ ON CONFLICT (id) DO NOTHING;
 CREATE POLICY "Public can read promotion images"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'promotions');
+
+CREATE POLICY "Authenticated can upload promotion images"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'promotions' AND auth.role() = 'authenticated');
