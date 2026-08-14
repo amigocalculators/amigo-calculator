@@ -61,11 +61,19 @@ export default function PromotionPopup({ promotion, onClose }: { promotion: Prom
           <img src={promotion.image_url} alt={promotion.title} className="w-full h-auto" />
         </button>
 
-        {promotion.caption && (
-          <p id="promotion-popup-title" className="text-center text-gray-700 text-sm py-3 px-4">
-            {promotion.caption}
-          </p>
-        )}
+        <div className="p-6 pt-5 text-center">
+          {promotion.caption && (
+            <p id="promotion-popup-title" className="text-gray-700 text-sm mb-4">
+              {promotion.caption}
+            </p>
+          )}
+          <button
+            onClick={() => router.push('/products')}
+            className="px-10 py-4 bg-gradient-to-r from-red-600 to-red-800 text-white font-bold text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95"
+          >
+            Grab the Offer Now!
+          </button>
+        </div>
       </div>
     </div>
   );
