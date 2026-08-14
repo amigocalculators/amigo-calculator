@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CartItem, Promotion } from '@/types';
 import { useCartStore } from '@/store/cartStore';
-import { getActiveGiftPromotion, buildFreeGiftItem, isFreeGiftItem } from '@/lib/promotions';
+import { getActiveGiftPromotion, buildFreeGiftItem, isFreeGiftItem, resolveOfferChoice } from '@/lib/promotions';
 import { useRouter } from 'next/navigation';
 import { CreditCard, MapPin, User, Shield, Truck, Package, Gift, Tag, Percent } from 'lucide-react';
 
@@ -55,7 +55,7 @@ const calculatePromotion = (cart: CartItem[]) => {
 };
 
 export default function CheckoutPage() {
-  const { cart, clearCart } = useCartStore();
+  const { cart, clearCart, selectedOfferType, setSelectedOfferType } = useCartStore();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [giftPromotion, setGiftPromotion] = useState<Promotion | null>(null);
@@ -77,12 +77,17 @@ export default function CheckoutPage() {
     return name.trim() !== '' && email.trim() !== '' && phone.trim().length === 10;
   };
 
-  const giftItem = giftPromotion && cart.length > 0 ? buildFreeGiftItem(giftPromotion, cart) : null;
+  const rawBuy2Get1 = calculatePromotion(cart);
+  const giftPreview = giftPromotion && cart.length > 0 ? buildFreeGiftItem(giftPromotion, cart) : null;
+  const bothAvailable = rawBuy2Get1.isEligible && !!giftPreview;
+  const offerChoice = resolveOfferChoice(rawBuy2Get1.isEligible, !!giftPreview, selectedOfferType);
+
+  // The two offers never stack — only the resolved choice actually applies.
+  const promotion = offerChoice === 'buy2get1'
+    ? rawBuy2Get1
+    : { isEligible: false, freeItems: [] as { id: number; price: number; originalId: number }[], promotionDiscount: 0, groupsOf3: 0 };
+  const giftItem = offerChoice === 'gift' ? giftPreview : null;
   const displayCart = giftItem ? [...cart, giftItem] : cart;
-  // The two offers don't stack — while a gift promotion applies, the evergreen Buy 2 Get 1 discount is suppressed.
-  const promotion = giftItem
-    ? { isEligible: false, freeItems: [] as { id: number; price: number; originalId: number }[], promotionDiscount: 0, groupsOf3: 0 }
-    : calculatePromotion(cart);
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const finalTotal = subtotal - promotion.promotionDiscount;
 
@@ -281,7 +286,35 @@ export default function CheckoutPage() {
                 <Package className="w-5 h-5" />Order Summary
               </h2>
 
-              {promotion.isEligible && (
+              {bothAvailable && giftPromotion && (
+                <div className="mb-6 border border-gray-200 rounded-xl p-4">
+                  <p className="text-sm font-semibold mb-3">Choose one offer to apply:</p>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setSelectedOfferType('buy2get1')}
+                      className={`w-full p-3 rounded-lg border-2 text-left text-sm transition-colors ${
+                        offerChoice === 'buy2get1' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className="font-bold text-purple-700">🎉 Buy 2 Get 1 FREE</span>
+                      <span className="block text-gray-600">Save ₹{rawBuy2Get1.promotionDiscount.toFixed(2)}</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedOfferType('gift')}
+                      className={`w-full p-3 rounded-lg border-2 text-left text-sm transition-colors ${
+                        offerChoice === 'gift' ? 'border-green-600 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className="font-bold text-green-700">🎁 {giftPromotion.title}</span>
+                      <span className="block text-gray-600">
+                        Free {giftPreview && giftPreview.quantity > 1 ? `${giftPreview.quantity} × ` : ''}{giftPromotion.free_gift_name}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {promotion.isEligible ? (
                 <div className="mb-6 p-4 bg-linear-to-r from-pink-500 to-purple-600 rounded-xl text-white">
                   <div className="flex items-center gap-2 mb-2">
                     <Tag className="w-5 h-5" />
@@ -291,7 +324,17 @@ export default function CheckoutPage() {
                     You&apos;re saving ₹{promotion.promotionDiscount.toFixed(2)} with {promotion.groupsOf3} free item{promotion.groupsOf3 > 1 ? 's' : ''}!
                   </p>
                 </div>
-              )}
+              ) : giftItem && giftPromotion ? (
+                <div className="mb-6 p-4 bg-linear-to-r from-orange-500 to-green-600 rounded-xl text-white">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Gift className="w-5 h-5" />
+                    <span className="font-bold">{giftPromotion.title} Active!</span>
+                  </div>
+                  <p className="text-sm opacity-90">
+                    You&apos;re getting {giftItem.quantity > 1 ? `${giftItem.quantity} × ` : ''}{giftItem.name} FREE with your order!
+                  </p>
+                </div>
+              ) : null}
 
               <div className="space-y-4 mb-6">
                 {displayCart.map((item) => {

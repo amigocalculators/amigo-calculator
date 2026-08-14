@@ -4,6 +4,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Product, CartItem } from '@/types';
 
+export type OfferChoice = 'buy2get1' | 'gift';
+
 interface CartState {
   cart: CartItem[];
   addToCart: (product: Product) => void;
@@ -11,6 +13,8 @@ interface CartState {
   updateQuantity: (productId: number, quantity: number) => void;
   clearCart: () => void;
   total: number;
+  selectedOfferType: OfferChoice | null;
+  setSelectedOfferType: (choice: OfferChoice | null) => void;
 }
 
 export const useCartStore = create<CartState>()(
@@ -18,6 +22,8 @@ export const useCartStore = create<CartState>()(
     (set) => ({
       cart: [],
       total: 0,
+      selectedOfferType: null,
+      setSelectedOfferType: (choice) => set({ selectedOfferType: choice }),
 
       addToCart: (product: Product) => {
         set((state) => {
@@ -60,7 +66,7 @@ export const useCartStore = create<CartState>()(
       },
 
       clearCart: () => {
-        set({ cart: [], total: 0 });
+        set({ cart: [], total: 0, selectedOfferType: null });
       },
     }),
     {

@@ -153,6 +153,7 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
               <tr className="text-left text-gray-500 bg-gray-50 border-b">
                 <th className="px-4 py-3 font-medium">Customer</th>
                 <th className="px-4 py-3 font-medium">Items</th>
+                <th className="px-4 py-3 font-medium">Offer Claimed</th>
                 <th className="px-4 py-3 font-medium">Total</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Date</th>
@@ -164,6 +165,9 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
                 const nextOptions = NEXT_STATUSES[order.status] ?? [];
                 const isFinal = nextOptions.length === 0;
                 const isUpdating = updatingId === order.id;
+                // Free gift line items are stored with a negative id (see src/lib/promotions.ts) —
+                // their presence is how we know a gift offer (not Buy 2 Get 1) was claimed on this order.
+                const giftLineItem = order.items.find((i) => i.id < 0);
 
                 return (
                   <React.Fragment key={order.id}>
@@ -174,7 +178,20 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
                         <p className="text-gray-500 text-xs">{order.customer_phone}</p>
                       </td>
                       <td className="px-4 py-3 text-gray-600">
-                        {order.items.map((i) => `${i.name} ×${i.quantity}`).join(', ')}
+                        {order.items.filter((i) => i.id >= 0).map((i) => `${i.name} ×${i.quantity}`).join(', ')}
+                      </td>
+                      <td className="px-4 py-3">
+                        {giftLineItem ? (
+                          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                            🎁 Send {giftLineItem.quantity}× {giftLineItem.name}
+                          </span>
+                        ) : Number(order.discount) > 0 ? (
+                          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
+                            🎉 Buy 2 Get 1
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 font-medium">
                         ₹{Number(order.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -248,7 +265,7 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
                     </tr>
                     {expanded === order.id && (
                       <tr key={`${order.id}-detail`} className="bg-blue-50">
-                        <td colSpan={6} className="px-4 py-4">
+                        <td colSpan={7} className="px-4 py-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                             <div>
                               <p className="font-medium mb-1">Shipping Address</p>
@@ -262,9 +279,15 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
                               <p className="text-gray-600 font-mono text-xs">{order.razorpay_payment_id}</p>
                               <p className="font-medium mt-3 mb-1">Items</p>
                               {order.items.map((item, i) => (
-                                <div key={i} className="flex items-center gap-2 mb-1">
-                                  <img src={item.image} alt={item.name} className="w-8 h-8 object-cover rounded" />
-                                  <span>{item.name} ×{item.quantity} — ₹{(item.price * item.quantity).toFixed(2)}</span>
+                                <div key={i} className={`flex items-center gap-2 mb-1 ${item.id < 0 ? 'bg-green-50 rounded px-1' : ''}`}>
+                                  {item.image && <img src={item.image} alt={item.name} className="w-8 h-8 object-cover rounded" />}
+                                  <span>
+                                    {item.name} ×{item.quantity} — {item.id < 0 ? (
+                                      <span className="text-green-700 font-semibold">FREE GIFT</span>
+                                    ) : (
+                                      `₹${(item.price * item.quantity).toFixed(2)}`
+                                    )}
+                                  </span>
                                 </div>
                               ))}
                             </div>

@@ -32,3 +32,19 @@ export function buildFreeGiftItem(promotion: Promotion, cart: CartItem[]): CartI
 export function isFreeGiftItem(item: CartItem): boolean {
   return item.id < 0;
 }
+
+export type OfferChoice = 'buy2get1' | 'gift' | 'none';
+
+// The two offers never stack. When only one is available, it applies automatically.
+// When both are available (e.g. cart qualifies for Buy 2 Get 1 while a gift promo is also
+// active), the shopper's explicit choice wins — defaulting to the gift promo if undecided.
+export function resolveOfferChoice(
+  buy2Get1Eligible: boolean,
+  giftAvailable: boolean,
+  selected: 'buy2get1' | 'gift' | null
+): OfferChoice {
+  if (buy2Get1Eligible && giftAvailable) return selected ?? 'gift';
+  if (buy2Get1Eligible) return 'buy2get1';
+  if (giftAvailable) return 'gift';
+  return 'none';
+}
