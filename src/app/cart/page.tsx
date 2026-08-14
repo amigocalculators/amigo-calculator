@@ -1,7 +1,9 @@
 'use client';
 
-import { CartItem } from '@/types';
+import { useEffect, useState } from 'react';
+import { CartItem, Promotion } from '@/types';
 import { useCartStore } from '@/store/cartStore';
+import { getActiveGiftPromotion, buildFreeGiftItem, isFreeGiftItem } from '@/lib/promotions';
 import { Minus, Plus, Trash2, Tag, Gift, Percent } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -27,10 +29,17 @@ const calculatePromotion = (cart: CartItem[]) => {
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart } = useCartStore();
   const router = useRouter();
+  const [giftPromotion, setGiftPromotion] = useState<Promotion | null>(null);
+
+  useEffect(() => {
+    getActiveGiftPromotion().then(setGiftPromotion);
+  }, []);
 
   const promotion = calculatePromotion(cart);
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const finalTotal = subtotal - promotion.promotionDiscount;
+  const giftItem = giftPromotion && cart.length > 0 ? buildFreeGiftItem(giftPromotion, cart) : null;
+  const displayCart = giftItem ? [...cart, giftItem] : cart;
 
   if (cart.length === 0) {
     return (
@@ -67,7 +76,34 @@ export default function CartPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
-            {cart.map((item) => {
+            {displayCart.map((item) => {
+              if (isFreeGiftItem(item)) {
+                return (
+                  <div key={item.id} className="relative">
+                    <div className="bg-white p-6 rounded-xl shadow-sm ring-2 ring-green-200 bg-gradient-to-r from-green-50 to-emerald-50 flex items-center gap-4">
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="w-24 h-24 object-cover rounded-lg" />
+                      ) : (
+                        <div className="w-24 h-24 rounded-lg bg-green-100 flex items-center justify-center">
+                          <Gift className="w-8 h-8 text-green-600" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold">{item.name}</h3>
+                        <p className="text-sm text-gray-500">
+                          {item.quantity > 1 ? `${item.quantity} × ` : ''}Free gift with your order
+                          {giftPromotion?.free_gift_value ? ` (worth ₹${Number(giftPromotion.free_gift_value).toFixed(2)})` : ''}
+                        </p>
+                      </div>
+                      <div className="font-bold text-green-600 text-lg">FREE</div>
+                    </div>
+                    <div className="absolute -top-3 -right-3 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                      <Gift className="w-3 h-3" /> GIFT
+                    </div>
+                  </div>
+                );
+              }
+
               const freeCount = promotion.freeItems.filter((fi) => fi.originalId === item.id).length;
               const paidCount = item.quantity - freeCount;
 
@@ -135,6 +171,12 @@ export default function CartPage() {
                   <div className="flex justify-between text-green-600 font-semibold">
                     <span className="flex items-center gap-1"><Percent className="w-4 h-4" />Buy 2 Get 1 FREE</span>
                     <span>-₹{promotion.promotionDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                {giftItem && (
+                  <div className="flex justify-between text-green-600 font-semibold">
+                    <span className="flex items-center gap-1"><Gift className="w-4 h-4" />{giftItem.quantity > 1 ? `${giftItem.quantity} × ` : ''}{giftItem.name}</span>
+                    <span>FREE</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600">

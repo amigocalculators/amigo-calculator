@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { CartItem } from '@/types';
+import { useEffect, useState } from 'react';
+import { CartItem, Promotion } from '@/types';
 import { useCartStore } from '@/store/cartStore';
+import { getActiveGiftPromotion, buildFreeGiftItem, isFreeGiftItem } from '@/lib/promotions';
 import { useRouter } from 'next/navigation';
 import { CreditCard, MapPin, User, Shield, Truck, Package, Gift, Tag, Percent } from 'lucide-react';
 
@@ -57,9 +58,14 @@ export default function CheckoutPage() {
   const { cart, clearCart } = useCartStore();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [giftPromotion, setGiftPromotion] = useState<Promotion | null>(null);
   const [customerDetails, setCustomerDetails] = useState({
     name: '', email: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
+
+  useEffect(() => {
+    getActiveGiftPromotion().then(setGiftPromotion);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -74,6 +80,8 @@ export default function CheckoutPage() {
   const promotion = calculatePromotion(cart);
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const finalTotal = subtotal - promotion.promotionDiscount;
+  const giftItem = giftPromotion && cart.length > 0 ? buildFreeGiftItem(giftPromotion, cart) : null;
+  const displayCart = giftItem ? [...cart, giftItem] : cart;
 
   const handleCheckout = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -87,7 +95,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           amount: finalTotal,
           customerDetails,
-          cart,
+          cart: displayCart,
           subtotal,
           discount: promotion.promotionDiscount,
           total: finalTotal,
@@ -115,7 +123,7 @@ export default function CheckoutPage() {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_signature: response.razorpay_signature,
               customerDetails,
-              cart,
+              cart: displayCart,
               subtotal,
               discount: promotion.promotionDiscount,
               total: finalTotal,
@@ -283,7 +291,33 @@ export default function CheckoutPage() {
               )}
 
               <div className="space-y-4 mb-6">
-                {cart.map((item) => {
+                {displayCart.map((item) => {
+                  if (isFreeGiftItem(item)) {
+                    return (
+                      <div key={item.id} className="relative">
+                        <div className="flex items-center gap-4 p-4 rounded-lg bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-200">
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
+                          ) : (
+                            <div className="w-16 h-16 rounded-lg bg-green-100 flex items-center justify-center">
+                              <Gift className="w-6 h-6 text-green-600" />
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <h3 className="font-medium">{item.name}</h3>
+                            <p className="text-sm text-gray-600">
+                              {item.quantity > 1 ? `Quantity: ${item.quantity} · ` : ''}Free gift with your order
+                            </p>
+                          </div>
+                          <p className="font-bold text-green-600">FREE</p>
+                        </div>
+                        <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                          <Gift className="w-3 h-3" />GIFT
+                        </div>
+                      </div>
+                    );
+                  }
+
                   const freeCount = promotion.freeItems.filter((fi) => fi.originalId === item.id).length;
                   const paidCount = item.quantity - freeCount;
                   return (
@@ -327,6 +361,12 @@ export default function CheckoutPage() {
                   <div className="flex justify-between text-green-600 font-semibold">
                     <span className="flex items-center gap-1"><Percent className="w-4 h-4" />Buy 2 Get 1 FREE</span>
                     <span>-₹{promotion.promotionDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                {giftItem && (
+                  <div className="flex justify-between text-green-600 font-semibold">
+                    <span className="flex items-center gap-1"><Gift className="w-4 h-4" />{giftItem.quantity > 1 ? `${giftItem.quantity} × ` : ''}{giftItem.name}</span>
+                    <span>FREE</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600"><span>Shipping</span><span className="text-green-600">Free</span></div>

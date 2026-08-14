@@ -55,3 +55,20 @@ export interface GalleryImage {
   year?: number;
   id?: number;
 }
+
+export interface Promotion {
+  id: number;
+  title: string;
+  image_url: string;
+  caption: string | null;
+  active: boolean;
+  free_gift_name: string | null;
+  free_gift_image: string | null;
+  free_gift_value: number | null;
+  free_gift_per_unit: boolean;
+  instagram_posted: boolean;
+  instagram_post_id: string | null;
+  instagram_permalink: string | null;
+  instagram_posted_at: string | null;
+  created_at: string;
+}
