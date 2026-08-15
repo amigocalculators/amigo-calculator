@@ -1,6 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import EventPageClient from './EventPageClient';
 
+// Cache this page instead of hitting Supabase on every single visit — exhibitions
+// and gallery images change rarely, so a longer cache window is fine here.
+export const revalidate = 120;
+
 export default async function EventPage() {
   const supabase = createAdminClient();
   const [{ data: dbExhibitions }, { data: dbGallery }] = await Promise.all([

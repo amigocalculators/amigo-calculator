@@ -1,10 +1,5 @@
 import type { Metadata } from 'next';
-import Script from 'next/script';
-import { headers } from 'next/headers';
 import './globals.css';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import ContactFormWrapper from '@/components/ContactFormWrapper';
 
 export const metadata: Metadata = {
   title: 'Amigo Calculators - Quality Calculators Made in India',
@@ -13,26 +8,14 @@ export const metadata: Metadata = {
   keywords: 'amigo calculators, calculator, scientific calculator, India, buy calculator',
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pathname = (await headers()).get('x-pathname') ?? '';
-  const isAdmin = pathname.startsWith('/admin');
-
   return (
     <html lang="en">
-      <body className="min-h-screen flex flex-col">
-        <Script
-          src="https://checkout.razorpay.com/v1/checkout.js"
-          strategy="afterInteractive"
-        />
-        {!isAdmin && <Navbar />}
-        <main className="flex-grow">{children}</main>
-        {!isAdmin && <Footer />}
-        {!isAdmin && <ContactFormWrapper />}
-      </body>
+      <body className="min-h-screen flex flex-col">{children}</body>
     </html>
   );
 }

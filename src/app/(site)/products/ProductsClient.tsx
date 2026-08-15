@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import { toast } from 'react-hot-toast';
 import { Product } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import Banner10 from '@/components/Banner/Banner10';
@@ -37,6 +38,11 @@ export default function ProductsClient({ products }: { products: Product[] }) {
   const [expandedSections, setExpandedSections] = useState({ categories: true, price: true });
 
   const { addToCart } = useCartStore();
+
+  const handleAddToCart = (product: Product) => {
+    addToCart(product);
+    toast.success(`${product.name} added to cart`);
+  };
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section as keyof typeof prev] }));
@@ -244,7 +250,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
                           <del>₹{product.prevprice}</del>&nbsp;₹{product.price.toFixed(2)}
                         </span>
                         <button
-                          onClick={() => addToCart(product)}
+                          onClick={() => handleAddToCart(product)}
                           disabled={!product.inStock}
                           className={`card-btn px-6 py-3 rounded-xl flex items-center gap-2 font-medium transition-all duration-200 ${
                             product.inStock

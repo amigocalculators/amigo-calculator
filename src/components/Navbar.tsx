@@ -30,6 +30,9 @@ const Navbar = () => {
             <Link href="/event" className="text-gray-600 hover:text-gray-900">
               Event
             </Link>
+            <Link href="/bulk-orders" className="text-gray-600 hover:text-gray-900">
+              Bulk Orders
+            </Link>
             <Link href="/about" className="text-gray-600 hover:text-gray-900">
               About Us
             </Link>
@@ -86,6 +89,13 @@ const Navbar = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Event
+              </Link>
+              <Link
+                href="/bulk-orders"
+                className="block px-3 py-2 text-gray-600 hover:text-gray-900"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Bulk Orders
               </Link>
               <Link
                 href="/about"

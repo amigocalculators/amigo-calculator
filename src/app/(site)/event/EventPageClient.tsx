@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { MapPin, Calendar, Building2, X, Send } from 'lucide-react';
-import { Toaster, toast } from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import emailjs from '@emailjs/browser';
 import { Exhibition, GalleryImage } from '@/types';
 
@@ -57,8 +57,6 @@ export default function EventPageClient({ exhibitions, galleryImages }: Props) {
 
   return (
     <div className="min-h-screen bg-[#f0efef]">
-      <Toaster position="top-right" />
-
       <main className="container mx-auto px-4 py-8 mt-16">
         {/* Past Exhibitions */}
         <section id="past" className="pt-12">

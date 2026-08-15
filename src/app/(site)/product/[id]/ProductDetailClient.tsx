@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { toast } from 'react-hot-toast';
 import { Product } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import Banner10 from '@/components/Banner/Banner10';
@@ -54,6 +55,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
 
   const handleAddToCart = () => {
     for (let i = 0; i < quantity; i++) addToCart(product);
+    toast.success(`${quantity > 1 ? `${quantity} × ` : ''}${product.name} added to cart`);
   };
 
   const handleShare = (platform: string) => {
@@ -383,7 +385,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                   <div className="flex justify-between items-center">
                     <span className="text-xl font-bold text-blue-600">₹{related.price.toFixed(2)}</span>
                     <button
-                      onClick={() => { addToCart(related); router.push(`/product/${related.id}`); }}
+                      onClick={() => { addToCart(related); toast.success(`${related.name} added to cart`); router.push(`/product/${related.id}`); }}
                       className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
                     >
                       <ShoppingCart className="w-4 h-4" />

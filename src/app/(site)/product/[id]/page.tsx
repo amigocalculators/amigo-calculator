@@ -4,6 +4,9 @@ import ProductDetailClient from './ProductDetailClient';
 
 type Props = { params: Promise<{ id: string }> };
 
+// Cache this page instead of hitting Supabase twice on every single visit.
+export const revalidate = 60;
+
 export default async function ProductDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = createAdminClient();
