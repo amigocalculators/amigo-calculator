@@ -47,8 +47,8 @@ function ImageUploadField({ label, value, onChange, bucket }: {
     try {
       const url = await uploadImage(file, bucket);
       onChange(url);
-    } catch {
-      alert('Upload failed. Make sure the Supabase storage bucket exists and is public.');
+    } catch (err) {
+      alert(`Upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';

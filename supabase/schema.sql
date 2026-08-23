@@ -77,6 +77,23 @@ CREATE POLICY "Public can read product images"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'products');
 
+CREATE POLICY "Authenticated can upload product images"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'products' AND auth.role() = 'authenticated');
+
+-- STORAGE BUCKET for exhibition/gallery images
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('exhibitions', 'exhibitions', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Public can read exhibition images"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'exhibitions');
+
+CREATE POLICY "Authenticated can upload exhibition images"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'exhibitions' AND auth.role() = 'authenticated');
+
 -- ============================================================
 -- RLS (Row Level Security)
 -- Public can READ products, exhibitions, gallery_images
