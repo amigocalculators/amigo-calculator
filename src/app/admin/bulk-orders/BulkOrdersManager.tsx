@@ -35,7 +35,11 @@ export default function BulkOrdersManager({ initialEnquiries }: { initialEnquiri
   const updateStatus = async (id: number, status: string) => {
     setUpdatingId(id);
     const { data, error } = await supabase.from('bulk_order_enquiries').update({ status }).eq('id', id).select().single();
-    if (!error && data) setEnquiries((prev) => prev.map((e) => (e.id === id ? data : e)));
+    if (error) {
+      alert(`Update failed: ${error.message}`);
+    } else {
+      setEnquiries((prev) => prev.map((e) => (e.id === id ? data : e)));
+    }
     setUpdatingId(null);
   };
 

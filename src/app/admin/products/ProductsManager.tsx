@@ -180,17 +180,31 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
 
     if (editing) {
       const { data, error } = await supabase.from('products').update(payload).eq('id', editing.id).select().single();
-      if (!error && data) setProducts((prev) => prev.map((p) => (p.id === editing.id ? data : p)));
+      if (error) {
+        alert(`Save failed: ${error.message}`);
+        setSaving(false);
+        return;
+      }
+      setProducts((prev) => prev.map((p) => (p.id === editing.id ? data : p)));
     } else {
       const { data, error } = await supabase.from('products').insert(payload).select().single();
-      if (!error && data) setProducts((prev) => [...prev, data]);
+      if (error) {
+        alert(`Save failed: ${error.message}`);
+        setSaving(false);
+        return;
+      }
+      setProducts((prev) => [...prev, data]);
     }
     setSaving(false);
     setShowForm(false);
   };
 
   const handleDelete = async (id: number) => {
-    await supabase.from('products').delete().eq('id', id);
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) {
+      alert(`Delete failed: ${error.message}`);
+      return;
+    }
     setProducts((prev) => prev.filter((p) => p.id !== id));
     setDeleteConfirm(null);
   };

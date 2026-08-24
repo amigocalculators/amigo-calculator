@@ -103,17 +103,31 @@ export default function ExhibitionsManager({ initialExhibitions, initialGallery 
     setSaving(true);
     if (editing) {
       const { data, error } = await supabase.from('exhibitions').update(form).eq('id', editing.id).select().single();
-      if (!error && data) setExhibitions((prev) => prev.map((e) => (e.id === editing.id ? data : e)));
+      if (error) {
+        alert(`Save failed: ${error.message}`);
+        setSaving(false);
+        return;
+      }
+      setExhibitions((prev) => prev.map((e) => (e.id === editing.id ? data : e)));
     } else {
       const { data, error } = await supabase.from('exhibitions').insert(form).select().single();
-      if (!error && data) setExhibitions((prev) => [data, ...prev]);
+      if (error) {
+        alert(`Save failed: ${error.message}`);
+        setSaving(false);
+        return;
+      }
+      setExhibitions((prev) => [data, ...prev]);
     }
     setSaving(false);
     setShowForm(false);
   };
 
   const handleDeleteExhibition = async (id: number) => {
-    await supabase.from('exhibitions').delete().eq('id', id);
+    const { error } = await supabase.from('exhibitions').delete().eq('id', id);
+    if (error) {
+      alert(`Delete failed: ${error.message}`);
+      return;
+    }
     setExhibitions((prev) => prev.filter((e) => e.id !== id));
     setDeleteConfirm(null);
   };
@@ -121,14 +135,23 @@ export default function ExhibitionsManager({ initialExhibitions, initialGallery 
   const handleSaveGallery = async () => {
     setSaving(true);
     const { data, error } = await supabase.from('gallery_images').insert(galleryForm).select().single();
-    if (!error && data) setGallery((prev) => [data, ...prev]);
+    if (error) {
+      alert(`Save failed: ${error.message}`);
+      setSaving(false);
+      return;
+    }
+    setGallery((prev) => [data, ...prev]);
     setSaving(false);
     setShowGalleryForm(false);
     setGalleryForm(emptyGallery);
   };
 
   const handleDeleteGallery = async (id: number) => {
-    await supabase.from('gallery_images').delete().eq('id', id);
+    const { error } = await supabase.from('gallery_images').delete().eq('id', id);
+    if (error) {
+      alert(`Delete failed: ${error.message}`);
+      return;
+    }
     setGallery((prev) => prev.filter((g) => g.id !== id));
   };
 

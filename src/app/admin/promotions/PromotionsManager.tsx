@@ -106,14 +106,22 @@ export default function PromotionsManager({ initialPromotions }: { initialPromot
   };
 
   const handleDelete = async (id: number) => {
-    await supabase.from('promotions').delete().eq('id', id);
+    const { error } = await supabase.from('promotions').delete().eq('id', id);
+    if (error) {
+      alert(`Delete failed: ${error.message}`);
+      return;
+    }
     setPromotions((prev) => prev.filter((p) => p.id !== id));
     setDeleteConfirm(null);
   };
 
   const handleToggleActive = async (promo: Promotion) => {
     const { data, error } = await supabase.from('promotions').update({ active: !promo.active }).eq('id', promo.id).select().single();
-    if (!error && data) setPromotions((prev) => prev.map((p) => (p.id === promo.id ? data : p)));
+    if (error) {
+      alert(`Update failed: ${error.message}`);
+      return;
+    }
+    setPromotions((prev) => prev.map((p) => (p.id === promo.id ? data : p)));
   };
 
   const handlePostToInstagram = async (id: number) => {

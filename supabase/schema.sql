@@ -97,7 +97,9 @@ CREATE POLICY "Authenticated can upload exhibition images"
 -- ============================================================
 -- RLS (Row Level Security)
 -- Public can READ products, exhibitions, gallery_images
--- Only service role (server API) can write to all tables
+-- The admin panel writes directly from the browser as an authenticated
+-- Supabase user (not via a service-role server route), so each table also
+-- needs an authenticated-write policy or admin saves fail silently.
 -- ============================================================
 
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
@@ -109,13 +111,28 @@ ALTER TABLE gallery_images ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public can read products"
   ON products FOR SELECT USING (true);
 
+CREATE POLICY "Authenticated can manage products"
+  ON products FOR ALL
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
+
 -- Public read access for exhibitions
 CREATE POLICY "Public can read exhibitions"
   ON exhibitions FOR SELECT USING (true);
 
+CREATE POLICY "Authenticated can manage exhibitions"
+  ON exhibitions FOR ALL
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
+
 -- Public read access for gallery_images
 CREATE POLICY "Public can read gallery_images"
   ON gallery_images FOR SELECT USING (true);
+
+CREATE POLICY "Authenticated can manage gallery_images"
+  ON gallery_images FOR ALL
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
 
 -- Service role bypasses RLS automatically (no policy needed for admin writes)
 
