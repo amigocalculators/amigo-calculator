@@ -1,7 +1,6 @@
 import Razorpay from 'razorpay';
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
-import { headers } from 'next/headers';
+import { createAdminClient, getAuthorizedAdmin } from '@/lib/supabase/server';
 
 const razorpay = new Razorpay({
   key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY!,
@@ -9,11 +8,7 @@ const razorpay = new Razorpay({
 });
 
 export async function POST() {
-  // Basic protection: only callable server-side / from admin
-  const headersList = await headers();
-  const origin = headersList.get('origin') ?? '';
-  const host = headersList.get('host') ?? '';
-  if (origin && !origin.includes(host.split(':')[0])) {
+  if (!(await getAuthorizedAdmin())) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

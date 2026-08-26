@@ -1,15 +1,18 @@
 import Razorpay from 'razorpay';
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, getAuthorizedAdmin } from '@/lib/supabase/server';
 
 const razorpay = new Razorpay({
   key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY!,
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
-// Only forward transitions are allowed — no going back
+// Only forward transitions are allowed — no going back.
+// pending -> confirmed is deliberately absent: confirmation only ever happens via a
+// verified payment (verify-payment route / razorpay-webhook), never a manual admin click.
+// The only manual move out of pending is closing out an abandoned, unpaid checkout.
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  pending:    ['confirmed'],
+  pending:    ['cancelled'],
   confirmed:  ['processing', 'cancelled'],
   processing: ['shipped', 'cancelled'],
   shipped:    ['delivered'],
@@ -33,6 +36,10 @@ const sendEmail = (payload: object) =>
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await getAuthorizedAdmin())) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    }
+
     const { orderId, newStatus } = await req.json();
 
     if (!orderId || !newStatus) {
@@ -73,9 +80,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Send status update email to customer (same template for all statuses including cancellation)
+    // Send status update email to customer (same template for all statuses including cancellation).
+    // Skip entirely for an abandoned/unpaid order — the customer never received a confirmation
+    // email for it in the first place, so a "your order was cancelled" notice would be confusing.
     const statusMessage = STATUS_MESSAGES[newStatus];
-    if (statusMessage) {
+    if (statusMessage && order.razorpay_payment_id) {
       await sendEmail({
         service_id: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
         template_id: process.env.NEXT_PUBLIC_EMAILJS_STATUS_TEMPLATE_ID,

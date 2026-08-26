@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { toast } from 'react-hot-toast';
-import { Product } from '@/types';
+import { Product, FlashSale } from '@/types';
 import { useCartStore } from '@/store/cartStore';
+import { createClient } from '@/lib/supabase/client';
+import { getFlashSaleStatus, isFlashSaleLive, handleFlashClaim } from '@/lib/flashSale';
 import Banner10 from '@/components/Banner/Banner10';
 import {
   Search,
@@ -15,6 +18,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Zap,
 } from 'lucide-react';
 
 const ContactForm = dynamic(() => import('@/components/ContactForm'));
@@ -29,6 +33,7 @@ const priceRanges = [
 ];
 
 export default function ProductsClient({ products }: { products: Product[] }) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
@@ -36,10 +41,37 @@ export default function ProductsClient({ products }: { products: Product[] }) {
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('featured');
   const [expandedSections, setExpandedSections] = useState({ categories: true, price: true });
+  const [flashSale, setFlashSale] = useState<FlashSale | null>(null);
+  const [flashAlreadyClaimed, setFlashAlreadyClaimed] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
 
   const { addToCart } = useCartStore();
 
-  const handleAddToCart = (product: Product) => {
+  useEffect(() => {
+    getFlashSaleStatus().then(({ sale, alreadyClaimed }) => {
+      setFlashSale(sale);
+      setFlashAlreadyClaimed(alreadyClaimed);
+    });
+    createClient().auth.getUser().then(({ data: { user } }) => setLoggedIn(!!user));
+  }, []);
+
+  const isClaimableFlash = (product: Product) =>
+    product.id === flashSale?.product_id && isFlashSaleLive(flashSale) && !flashAlreadyClaimed;
+
+  const handleAddToCart = async (product: Product) => {
+    if (isClaimableFlash(product)) {
+      await handleFlashClaim({
+        isLoggedIn: loggedIn,
+        productPath: `/product/${product.id}`,
+        onLoginRequired: (url) => router.push(url),
+        onClaimed: () => {
+          addToCart(product);
+          toast.success(`${product.name} added to cart at the flash price!`);
+        },
+        onError: (message) => toast.error(message),
+      });
+      return;
+    }
     addToCart(product);
     toast.success(`${product.name} added to cart`);
   };
@@ -86,6 +118,12 @@ export default function ProductsClient({ products }: { products: Product[] }) {
       return matchesSearch && matchesCategory && matchesPriceRange;
     })
     .sort((a, b) => {
+      // The flash-sale product always floats to the front, regardless of sort order —
+      // it stays pinned for the whole campaign (including its "Coming Soon" phase),
+      // not just while it's actually purchasable at the flash price.
+      const aIsFlash = flashSale?.enabled && a.id === flashSale.product_id ? 1 : 0;
+      const bIsFlash = flashSale?.enabled && b.id === flashSale.product_id ? 1 : 0;
+      if (aIsFlash !== bIsFlash) return bIsFlash - aIsFlash;
       switch (sortBy) {
         case 'price-low-high': return a.price - b.price;
         case 'price-high-low': return b.price - a.price;
@@ -216,13 +254,13 @@ export default function ProductsClient({ products }: { products: Product[] }) {
                     className="bg-[#e0dede] rounded-2xl shadow-lg overflow-hidden group hover:shadow-3xl transition-all duration-300 transform hover:-translate-y-1"
                   >
                     <Link href={`/product/${product.id}`} className="block relative">
-                      <div className="relative w-full aspect-square">
+                      <div className="relative w-full aspect-square bg-white">
                         <Image
                           src={product.image}
                           alt={product.name}
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                          className="object-cover transform transition-transform duration-500 group-hover:scale-105"
+                          className="object-contain transform transition-transform duration-500 group-hover:scale-105"
                         />
                       </div>
                       {product.inStock ? (
@@ -232,6 +270,12 @@ export default function ProductsClient({ products }: { products: Product[] }) {
                       ) : (
                         <span className="absolute top-4 right-4 bg-red-400 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg">
                           Out of Stock
+                        </span>
+                      )}
+                      {isClaimableFlash(product) && (
+                        <span className="absolute top-4 left-4 flex items-center gap-1 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                          <Zap className="w-3.5 h-3.5" />
+                          Flash Sale
                         </span>
                       )}
                     </Link>
@@ -247,7 +291,15 @@ export default function ProductsClient({ products }: { products: Product[] }) {
                       <hr className="card-divider" />
                       <div className="flex items-center justify-between pt-2">
                         <span className="text-[#112a46] text-2xl font-bold lg:text-xl lg:font-semibold font-roboto">
-                          <del>₹{product.prevprice}</del>&nbsp;₹{product.price.toFixed(2)}
+                          {isClaimableFlash(product) ? (
+                            <>
+                              <del>₹{product.price.toFixed(2)}</del>&nbsp;<span className="text-red-600">₹{flashSale!.sale_price.toFixed(2)}</span>
+                            </>
+                          ) : (
+                            <>
+                              <del>₹{product.prevprice}</del>&nbsp;₹{product.price.toFixed(2)}
+                            </>
+                          )}
                         </span>
                         <button
                           onClick={() => handleAddToCart(product)}

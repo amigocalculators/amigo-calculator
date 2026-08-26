@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { uploadImage } from '@/lib/supabase/storage';
-import { Plus, Pencil, Trash2, X, Check, Upload, ImageIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check, Upload, ImageIcon, Search } from 'lucide-react';
 
 type Product = {
   id: number;
@@ -65,7 +65,7 @@ function ImageUploadField({ label, value, onChange, bucket }: {
       )}
       <div className="flex gap-2 items-center">
         <input value={value} onChange={(e) => onChange(e.target.value)}
-          placeholder="/Image/Product/... or upload"
+          placeholder="Image URL or upload"
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
         <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
           className="flex items-center gap-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-60 whitespace-nowrap">
@@ -125,6 +125,8 @@ function MultiImageUpload({ images, onChange, bucket }: {
   );
 }
 
+type StockFilter = 'all' | 'in' | 'out';
+
 export default function ProductsManager({ initialProducts }: { initialProducts: Product[] }) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [showForm, setShowForm] = useState(false);
@@ -132,6 +134,8 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
   const [form, setForm] = useState<Omit<Product, 'id'>>(emptyProduct);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [search, setSearch] = useState('');
+  const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const supabase = createClient();
 
   const [featuresInput, setFeaturesInput] = useState('');
@@ -209,10 +213,42 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
     setDeleteConfirm(null);
   };
 
+  const filteredProducts = products.filter((p) => {
+    const q = search.trim().toLowerCase();
+    const matchesSearch =
+      !q ||
+      p.name.toLowerCase().includes(q) ||
+      (p.category ?? '').toLowerCase().includes(q) ||
+      String(p.price).includes(q);
+    const matchesStock = stockFilter === 'all' || (stockFilter === 'in' ? p.in_stock : !p.in_stock);
+    return matchesSearch && matchesStock;
+  });
+
   return (
     <div>
-      <div className="flex justify-end mb-4">
-        <button onClick={openCreate} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-1 min-w-60">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name, price or category..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            />
+          </div>
+          <select
+            value={stockFilter}
+            onChange={(e) => setStockFilter(e.target.value as StockFilter)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+          >
+            <option value="all">All Stock</option>
+            <option value="in">In Stock</option>
+            <option value="out">Out of Stock</option>
+          </select>
+        </div>
+        <button onClick={openCreate} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium whitespace-nowrap">
           <Plus className="w-4 h-4" /> Add Product
         </button>
       </div>
@@ -220,6 +256,8 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         {products.length === 0 ? (
           <p className="text-gray-500 text-center py-12">No products yet.</p>
+        ) : filteredProducts.length === 0 ? (
+          <p className="text-gray-500 text-center py-12">No products match your search.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -232,7 +270,7 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {products.map((p) => (
+              {filteredProducts.map((p) => (
                 <tr key={p.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 flex items-center gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

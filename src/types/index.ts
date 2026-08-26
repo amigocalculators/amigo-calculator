@@ -72,3 +72,43 @@ export interface Promotion {
   instagram_posted_at: string | null;
   created_at: string;
 }
+
+export interface SiteSettings {
+  buy2get1_enabled: boolean;
+}
+
+export interface FlashSale {
+  id: number;
+  product_id: number;
+  sale_price: number;
+  max_claims: number;
+  claimed_count: number;
+  starts_at: string;
+  enabled: boolean;
+  coming_soon_message: string | null;
+  ad_image_url: string | null;
+  ad_title: string | null;
+  ad_caption: string | null;
+  created_at: string;
+}
+
+// A single promotional slide shown in the homepage top banner and floating corner
+// card — regular promotions and the flash sale's site-wide ad both get adapted into
+// this common shape so those two placements don't need to know which is which.
+export interface AdSlide {
+  key: string;
+  title: string;
+  caption: string | null;
+  image_url: string;
+  href: string;
+}
+
+export interface FlashSaleClaim {
+  id: number;
+  flash_sale_id: number;
+  user_id: string;
+  status: 'interested' | 'confirmed';
+  order_id: string | null;
+  created_at: string;
+  confirmed_at: string | null;
+}

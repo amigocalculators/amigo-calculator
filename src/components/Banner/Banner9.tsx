@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -13,11 +14,16 @@ interface Banner9Props {
 
 const Banner9 = ({ products, currentProductId }: Banner9Props) => {
   const router = useRouter();
+  const filtered = products.filter((p) => p.id !== currentProductId);
 
-  const relatedProducts = products
-    .filter((p) => p.id !== currentProductId)
-    .sort(() => 0.5 - Math.random())
-    .slice(0, 4);
+  // Same slice on the server and the client's first render (no Math.random() here) so
+  // hydration matches — the shuffle below only runs after mount, client-side only.
+  const [relatedProducts, setRelatedProducts] = useState(() => filtered.slice(0, 4));
+
+  useEffect(() => {
+    setRelatedProducts([...filtered].sort(() => 0.5 - Math.random()).slice(0, 4));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProductId, products]);
 
   return (
     <div className="mb-4 py-6 px-6 bg-gray-50">

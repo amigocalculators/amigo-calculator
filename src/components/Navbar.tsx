@@ -2,12 +2,23 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ShoppingCart, Menu } from 'lucide-react';
+import { ShoppingCart, Menu, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
+import { createClient } from '@/lib/supabase/client';
 
 const Navbar = () => {
   const { cart } = useCartStore();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+
+  React.useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => setIsLoggedIn(!!user));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session?.user);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <nav className="bg-white shadow-lg fixed w-full top-0 z-50">
@@ -35,6 +46,10 @@ const Navbar = () => {
             </Link>
             <Link href="/about" className="text-gray-600 hover:text-gray-900">
               About Us
+            </Link>
+            <Link href={isLoggedIn ? '/account/orders' : '/account/login'} className="text-gray-600 hover:text-gray-900 flex items-center gap-1">
+              <User className="w-5 h-5" />
+              <span className="text-base">{isLoggedIn ? 'My Orders' : 'Login'}</span>
             </Link>
             <Link href="/cart" className="text-gray-600 hover:text-gray-900 relative">
               <ShoppingCart className="w-6 h-6" />
@@ -103,6 +118,13 @@ const Navbar = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 About Us
+              </Link>
+              <Link
+                href={isLoggedIn ? '/account/orders' : '/account/login'}
+                className="block px-3 py-2 text-gray-600 hover:text-gray-900"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {isLoggedIn ? 'My Orders' : 'Login'}
               </Link>
             </div>
           </div>

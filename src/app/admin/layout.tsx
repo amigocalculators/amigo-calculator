@@ -24,7 +24,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (pathname === '/admin/login') return <>{children}</>;
 
   const user = await getUser();
-  if (!user) redirect('/admin/login');
+  // Customers can also be logged in (via OTP) — only app_metadata.role === 'admin'
+  // grants access here, since app_metadata can't be set by the user themselves.
+  if (!user || user.app_metadata?.role !== 'admin') redirect('/admin/login');
 
   return (
     <div className="flex min-h-screen bg-gray-100">

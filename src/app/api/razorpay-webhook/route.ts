@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
+import { confirmPaidOrder } from '@/lib/orderConfirmation';
 
 // Razorpay retries webhooks until it receives a 200 response.
 // Always return 200 even on business logic errors to prevent infinite retries.
@@ -32,23 +32,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Missing payment entity' }, { status: 200 });
       }
 
-      const supabase = createAdminClient();
-
-      // Update the pending order to confirmed.
-      // If verify-payment already confirmed it, this is a no-op.
-      // If verify-payment failed (network drop etc.), this is the safety net.
-      const { error } = await supabase
-        .from('orders')
-        .update({
-          razorpay_payment_id: payment.id,
-          status: 'confirmed',
-        })
-        .eq('razorpay_order_id', payment.order_id)
-        .eq('status', 'pending'); // only update if still pending (don't downgrade confirmed)
-
-      if (error) {
-        console.error('Webhook: failed to update order:', error);
-      }
+      // Shared with /api/verify-payment — idempotent, so if that route already
+      // confirmed this order, this is a no-op. If it failed (network drop etc. between
+      // the browser and our server), this is the safety net that still runs the
+      // flash-sale slot claim and emails exactly once.
+      await confirmPaidOrder(payment.order_id, payment.id);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });

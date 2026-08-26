@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { uploadImage } from '@/lib/supabase/storage';
 import { Promotion } from '@/types';
-import { Plus, Pencil, Trash2, X, Check, Upload, Instagram, ExternalLink, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check, Upload, Instagram, ExternalLink, Loader2, Percent } from 'lucide-react';
 
 type PromotionForm = Omit<Promotion, 'id' | 'instagram_posted' | 'instagram_post_id' | 'instagram_permalink' | 'instagram_posted_at' | 'created_at'>;
 
@@ -62,7 +62,9 @@ function ImageUploadField({ label, value, onChange, bucket }: {
   );
 }
 
-export default function PromotionsManager({ initialPromotions }: { initialPromotions: Promotion[] }) {
+export default function PromotionsManager({ initialPromotions, initialBuy2Get1Enabled }: {
+  initialPromotions: Promotion[]; initialBuy2Get1Enabled: boolean;
+}) {
   const [promotions, setPromotions] = useState<Promotion[]>(initialPromotions);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Promotion | null>(null);
@@ -70,7 +72,28 @@ export default function PromotionsManager({ initialPromotions }: { initialPromot
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [postingId, setPostingId] = useState<number | null>(null);
+  const [buy2Get1Enabled, setBuy2Get1Enabled] = useState(initialBuy2Get1Enabled);
+  const [togglingBuy2Get1, setTogglingBuy2Get1] = useState(false);
   const supabase = createClient();
+
+  const handleToggleBuy2Get1 = async () => {
+    setTogglingBuy2Get1(true);
+    const next = !buy2Get1Enabled;
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buy2get1_enabled: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Update failed');
+      setBuy2Get1Enabled(next);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update setting');
+    } finally {
+      setTogglingBuy2Get1(false);
+    }
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -144,6 +167,25 @@ export default function PromotionsManager({ initialPromotions }: { initialPromot
 
   return (
     <div>
+      <div className="bg-white rounded-xl shadow-sm p-4 mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Percent className="w-5 h-5 text-purple-600" />
+          <div>
+            <p className="font-medium text-gray-900">Buy 2 Get 1 FREE</p>
+            <p className="text-xs text-gray-500">Evergreen offer — controls both the homepage banner and the actual checkout discount.</p>
+          </div>
+        </div>
+        <button
+          onClick={handleToggleBuy2Get1}
+          disabled={togglingBuy2Get1}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors disabled:opacity-60 ${
+            buy2Get1Enabled ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+          }`}
+        >
+          {togglingBuy2Get1 ? 'Updating…' : buy2Get1Enabled ? 'Active' : 'Off'}
+        </button>
+      </div>
+
       <div className="flex justify-end mb-4">
         <button onClick={openCreate} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
           <Plus className="w-4 h-4" /> Add Promotion

@@ -1,6 +1,7 @@
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, getAuthorizedUser } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import ProductDetailClient from './ProductDetailClient';
+import { FlashSale } from '@/types';
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -28,5 +29,37 @@ export default async function ProductDetailPage({ params }: Props) {
 
   const relatedProducts = (relatedData ?? []).map((p) => ({ ...p, inStock: p.in_stock }));
 
-  return <ProductDetailClient product={product} relatedProducts={relatedProducts} />;
+  // Only relevant if this specific product is the one currently on flash sale — the raw
+  // starts_at/enabled/claimed_count are passed down as-is (not a pre-computed "isLive"
+  // boolean) so the client can evaluate liveness against Date.now() itself, immune to
+  // this page's 60s ISR cache window.
+  const { data: flashSaleRow } = await supabase
+    .from('flash_sales')
+    .select('*')
+    .eq('product_id', Number(id))
+    .maybeSingle();
+  const flashSale = (flashSaleRow as FlashSale | null) ?? null;
+
+  let alreadyClaimed = false;
+  if (flashSale) {
+    const user = await getAuthorizedUser();
+    if (user) {
+      const { data: claim } = await supabase
+        .from('flash_sale_claims')
+        .select('status')
+        .eq('flash_sale_id', flashSale.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      alreadyClaimed = claim?.status === 'confirmed';
+    }
+  }
+
+  return (
+    <ProductDetailClient
+      product={product}
+      relatedProducts={relatedProducts}
+      flashSale={flashSale}
+      flashAlreadyClaimed={alreadyClaimed}
+    />
+  );
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, getAuthorizedAdmin } from '@/lib/supabase/server';
 
 const sendEmail = (payload: object) =>
   fetch('https://api.emailjs.com/api/v1.0/email/send', {
@@ -10,6 +10,10 @@ const sendEmail = (payload: object) =>
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await getAuthorizedAdmin())) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    }
+
     const { orderId } = await req.json();
 
     if (!orderId) {

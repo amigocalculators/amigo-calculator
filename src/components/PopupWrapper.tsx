@@ -1,18 +1,12 @@
 'use client';
 
-import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Promotion } from '@/types';
+import { AdSlide } from '@/types';
 
-const Popup = dynamic(() => import('./Popup'), { ssr: false });
-const PromotionPopup = dynamic(() => import('./PromotionPopup'), { ssr: false });
+const PromotionCard = dynamic(() => import('./PromotionCard'), { ssr: false });
 
-export default function PopupWrapper({ promotion }: { promotion?: Promotion | null }) {
-  const [promoClosed, setPromoClosed] = useState(false);
-
-  // Show the active promotion's popup first; once dismissed, fall back to the evergreen offer popup.
-  if (promotion && !promoClosed) {
-    return <PromotionPopup promotion={promotion} onClose={() => setPromoClosed(true)} />;
-  }
-  return <Popup />;
+export default function PopupWrapper({ slides = [], buy2Get1Enabled = true }: {
+  slides?: AdSlide[]; buy2Get1Enabled?: boolean;
+}) {
+  return <PromotionCard slides={slides} buy2Get1Enabled={buy2Get1Enabled} />;
 }

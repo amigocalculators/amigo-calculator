@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'react-hot-toast';
-import { Product } from '@/types';
+import { Product, FlashSale } from '@/types';
 import { useCartStore } from '@/store/cartStore';
+import { createClient } from '@/lib/supabase/client';
+import { isFlashSaleLive, handleFlashClaim } from '@/lib/flashSale';
 import Banner10 from '@/components/Banner/Banner10';
 import {
   ShoppingCart,
@@ -16,6 +18,7 @@ import {
   Package,
   ChevronRight,
   Check,
+  Zap,
   Facebook,
   Twitter,
   Linkedin,
@@ -25,9 +28,11 @@ import {
 interface Props {
   product: Product;
   relatedProducts: Product[];
+  flashSale: FlashSale | null;
+  flashAlreadyClaimed: boolean;
 }
 
-export default function ProductDetailClient({ product, relatedProducts }: Props) {
+export default function ProductDetailClient({ product, relatedProducts, flashSale, flashAlreadyClaimed }: Props) {
   const router = useRouter();
   const { addToCart, cart } = useCartStore();
   const [selectedImage, setSelectedImage] = useState(0);
@@ -35,6 +40,73 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
   const [showShareOptions, setShowShareOptions] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
+
+  const isFlashProduct = flashSale?.product_id === product.id;
+  const [flashLive, setFlashLive] = useState(() => isFlashProduct && isFlashSaleLive(flashSale));
+  const [alreadyClaimed, setAlreadyClaimed] = useState(flashAlreadyClaimed);
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  const [claiming, setClaiming] = useState(false);
+
+  const showComingSoon = isFlashProduct && !!flashSale?.enabled && !flashLive && new Date(flashSale.starts_at) > new Date();
+  const showClaim = isFlashProduct && flashLive && !alreadyClaimed;
+
+  // The Coming-Soon -> Live transition is time-based, not event-based — schedule it to
+  // flip at the exact moment rather than polling, so it's immune to this page's ISR cache.
+  useEffect(() => {
+    if (!isFlashProduct || !flashSale || flashLive) return;
+    const msUntilStart = new Date(flashSale.starts_at).getTime() - Date.now();
+    if (msUntilStart <= 0) return;
+    const timer = setTimeout(() => setFlashLive(isFlashSaleLive(flashSale)), msUntilStart);
+    return () => clearTimeout(timer);
+  }, [isFlashProduct, flashSale, flashLive]);
+
+  useEffect(() => {
+    if (!isFlashProduct) return;
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => setLoggedIn(!!user));
+  }, [isFlashProduct]);
+
+  // Resumes a claim after the login redirect (?claim=1) sends the customer back here.
+  // Read via window.location rather than useSearchParams() to avoid a Suspense boundary
+  // requirement for what's just a one-time client-only check.
+  useEffect(() => {
+    if (!showClaim) return;
+    if (typeof window === 'undefined' || !window.location.search.includes('claim=1')) return;
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      setClaiming(true);
+      await handleFlashClaim({
+        isLoggedIn: true,
+        productPath: `/product/${product.id}`,
+        onLoginRequired: () => {},
+        onClaimed: () => {
+          addToCart(product);
+          setAlreadyClaimed(false);
+          toast.success(`${product.name} added to cart at the flash price!`);
+        },
+        onError: (message) => toast.error(message),
+      });
+      setClaiming(false);
+      router.replace(`/product/${product.id}`);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showClaim]);
+
+  const handleClaimClick = async () => {
+    setClaiming(true);
+    await handleFlashClaim({
+      isLoggedIn: !!loggedIn,
+      productPath: `/product/${product.id}`,
+      onLoginRequired: (url) => router.push(url),
+      onClaimed: () => {
+        addToCart(product);
+        toast.success(`${product.name} added to cart at the flash price!`);
+      },
+      onError: (message) => toast.error(message),
+    });
+    setClaiming(false);
+  };
 
   const getProductImages = (prod: Product) => {
     if (prod.images && prod.images.length >= 4) return prod.images;
@@ -110,13 +182,13 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
             {/* Product Images */}
             <div className="lg:col-span-1">
-              <div className="relative aspect-square bg-gray-100 rounded-xl overflow-hidden mb-4">
+              <div className="relative aspect-square bg-white rounded-xl overflow-hidden mb-4">
                 <Image
                   src={productImages[selectedImage]}
                   alt={product.name}
                   fill
                   sizes="(max-width: 768px) 100vw, 50vw"
-                  className="object-cover transition-transform duration-300 hover:scale-105"
+                  className="object-contain transition-transform duration-300 hover:scale-105"
                   priority
                 />
                 {product.inStock ? (
@@ -132,7 +204,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`relative rounded-lg overflow-hidden w-[115px] aspect-square inline-block ${
+                    className={`relative rounded-lg overflow-hidden w-[115px] aspect-square inline-block bg-white ${
                       selectedImage === index ? 'ring-2 ring-blue-500' : 'hover:ring-2 hover:ring-blue-300'
                     } transition-all duration-200`}
                   >
@@ -141,7 +213,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                       alt={`${product.name} view ${index + 1}`}
                       fill
                       sizes="115px"
-                      className="object-cover"
+                      className="object-contain"
                     />
                     {selectedImage === index && <div className="absolute inset-0 bg-blue-500 bg-opacity-10" />}
                   </button>
@@ -154,7 +226,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`relative rounded-lg overflow-hidden aspect-square ${
+                    className={`relative rounded-lg overflow-hidden aspect-square bg-white ${
                       selectedImage === index ? 'ring-2 ring-blue-500' : 'hover:ring-2 hover:ring-blue-300'
                     } transition-all duration-200`}
                   >
@@ -163,7 +235,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                       alt={`${product.name} view ${index + 1}`}
                       fill
                       sizes="25vw"
-                      className="object-cover"
+                      className="object-contain"
                     />
                   </button>
                 ))}
@@ -189,8 +261,29 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                   </div>
                 )}
 
-                <div className="text-2xl font-bold"><del>₹{product.prevprice}</del></div>
-                <div className="text-3xl font-bold mb-6 text-blue-600">₹{product.price.toFixed(2)}</div>
+                {showComingSoon && (
+                  <div className="inline-flex items-center gap-1.5 mb-2 px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                    <Zap className="w-3.5 h-3.5" />
+                    {flashSale!.coming_soon_message?.trim()
+                      ? flashSale!.coming_soon_message
+                      : `Flash Sale Coming ${new Date(flashSale!.starts_at).toLocaleString('en-IN', { weekday: 'long', hour: 'numeric', minute: '2-digit' })}`}
+                  </div>
+                )}
+                {showClaim ? (
+                  <>
+                    <div className="inline-flex items-center gap-1.5 mb-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                      <Zap className="w-3.5 h-3.5" />
+                      Flash Sale — {flashSale!.max_claims - flashSale!.claimed_count} of {flashSale!.max_claims} left
+                    </div>
+                    <div className="text-2xl font-bold"><del>₹{product.price.toFixed(2)}</del></div>
+                    <div className="text-3xl font-bold mb-6 text-red-600">₹{flashSale!.sale_price.toFixed(2)}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold"><del>₹{product.prevprice}</del></div>
+                    <div className="text-3xl font-bold mb-6 text-blue-600">₹{product.price.toFixed(2)}</div>
+                  </>
+                )}
 
                 {/* Quantity */}
                 <div className="mb-6">
@@ -222,14 +315,14 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                 {/* Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 mb-6">
                   <button
-                    onClick={isInCart ? () => router.push('/cart') : handleAddToCart}
-                    disabled={!product.inStock}
-                    className={`py-3 px-6 rounded-lg flex items-center justify-center gap-2 ${
-                      isInCart ? 'bg-orange-400 hover:bg-orange-500' : 'bg-blue-600 hover:bg-blue-700'
+                    onClick={isInCart ? () => router.push('/cart') : showClaim ? handleClaimClick : handleAddToCart}
+                    disabled={!product.inStock || claiming}
+                    className={`py-3 px-6 rounded-lg flex items-center justify-center gap-2 disabled:opacity-60 ${
+                      isInCart ? 'bg-orange-400 hover:bg-orange-500' : showClaim ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
                     } text-white transition-colors`}
                   >
-                    <ShoppingCart className="w-5 h-5" />
-                    {isInCart ? 'View Cart' : 'Add to Cart'}
+                    {showClaim ? <Zap className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
+                    {isInCart ? 'View Cart' : claiming ? 'Claiming…' : showClaim ? `Claim for ₹${flashSale!.sale_price.toFixed(2)}` : 'Add to Cart'}
                   </button>
 
                   <div className="relative">
@@ -367,13 +460,13 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
             {relatedProducts.map((related) => (
               <div key={related.id} className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                 <Link href={`/product/${related.id}`} className="block relative group">
-                  <div className="relative w-full aspect-square">
+                  <div className="relative w-full aspect-square bg-white">
                     <Image
                       src={related.image}
                       alt={related.name}
                       fill
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                      className="object-cover transform group-hover:scale-105 transition-transform duration-300"
+                      className="object-contain transform group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
                   <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity" />
@@ -385,7 +478,24 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
                   <div className="flex justify-between items-center">
                     <span className="text-xl font-bold text-blue-600">₹{related.price.toFixed(2)}</span>
                     <button
-                      onClick={() => { addToCart(related); toast.success(`${related.name} added to cart`); router.push(`/product/${related.id}`); }}
+                      onClick={async () => {
+                        // Route through the same claim flow if this related item happens
+                        // to be the flash-sale product — otherwise a different "Add"
+                        // button could bypass lead-capture and the login gate entirely.
+                        if (related.id === flashSale?.product_id && flashLive && !alreadyClaimed) {
+                          await handleFlashClaim({
+                            isLoggedIn: !!loggedIn,
+                            productPath: `/product/${related.id}`,
+                            onLoginRequired: (url) => router.push(url),
+                            onClaimed: () => { addToCart(related); toast.success(`${related.name} added to cart at the flash price!`); router.push(`/product/${related.id}`); },
+                            onError: (message) => toast.error(message),
+                          });
+                          return;
+                        }
+                        addToCart(related);
+                        toast.success(`${related.name} added to cart`);
+                        router.push(`/product/${related.id}`);
+                      }}
                       className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
                     >
                       <ShoppingCart className="w-4 h-4" />
