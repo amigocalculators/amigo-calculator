@@ -14,7 +14,6 @@ import {
   ShoppingCart,
   Share2,
   Shield,
-  Truck,
   Package,
   ChevronRight,
   Check,
@@ -392,13 +391,6 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
 
                 {/* Shipping Info */}
                 <div className="space-y-4">
-                  <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-                    <Truck className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-blue-900">Free Shipping</h4>
-                      <p className="text-sm text-blue-700">Free standard shipping on orders over ₹499</p>
-                    </div>
-                  </div>
                   <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
                     <Shield className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                     <div>
