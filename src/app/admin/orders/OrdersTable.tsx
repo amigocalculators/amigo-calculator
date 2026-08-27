@@ -48,6 +48,7 @@ type Order = {
   total: number;
   status: string;
   created_at: string;
+  flash_sale_id: number | null;
 };
 
 type Tab = 'confirmed' | 'pending';
@@ -243,6 +244,10 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
                         {giftLineItem ? (
                           <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                             🎁 Send {giftLineItem.quantity}× {giftLineItem.name}
+                          </span>
+                        ) : order.flash_sale_id ? (
+                          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                            ⚡ Flash Sale
                           </span>
                         ) : Number(order.discount) > 0 ? (
                           <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">

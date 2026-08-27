@@ -78,11 +78,10 @@ export async function confirmPaidOrder(razorpay_order_id: string, razorpay_payme
   const row = order as OrderRow;
 
   if (row.flash_sale_id && row.user_id) {
-    // Honored regardless of this RPC's result — NULL just means the public "X of 10"
-    // counter didn't have room by the time this particular payment confirmed, which can
-    // happen in a small race window between checkout-start and payment-confirmation.
-    // The money's already been collected, so the order stands either way.
-    await supabase.rpc('claim_flash_sale_slot', { p_flash_sale_id: row.flash_sale_id });
+    // The slot itself was already atomically reserved at checkout time (see
+    // /api/checkout), so this is just record-keeping — marking which reservation
+    // turned into a real, paid order. Do not re-claim a slot here: that would double
+    // count a person who already consumed one at checkout.
     await supabase
       .from('flash_sale_claims')
       .upsert(

@@ -56,9 +56,12 @@ CREATE POLICY "Users can read own claim"
 -- (claim-interest and payment confirmation). This table holds lead/PII-adjacent data.
 
 -- Atomic slot counter. A single UPDATE is inherently race-safe under Postgres's
--- row-level locking during the statement, so concurrent confirmations can never push
+-- row-level locking during the statement, so concurrent callers can never push
 -- claimed_count past max_claims — no explicit transaction/advisory lock needed.
--- Only ever called at payment-confirmation time, never at checkout-start.
+-- Called at checkout-start (see /api/checkout), the moment the price is decided —
+-- not at payment-confirmation. An earlier version called this only at confirmation
+-- time, which let a burst of simultaneous checkouts all see "room available" before
+-- any single payment had confirmed and moved the counter, oversold beyond max_claims.
 CREATE OR REPLACE FUNCTION claim_flash_sale_slot(p_flash_sale_id INT)
 RETURNS INT LANGUAGE plpgsql AS $$
 DECLARE

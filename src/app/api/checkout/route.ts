@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, getAuthorizedUser } from '@/lib/supabase/server';
 import { getActiveGiftPromotions, isBuy2Get1Enabled } from '@/lib/promotions';
 import { calculateOrderPricing } from '@/lib/orderPricing';
-import { isFlashSaleLive } from '@/lib/flashSale';
+import { isSoldOutDiscountActive } from '@/lib/flashSale';
 import { CartItem, FlashSale } from '@/types';
 
 const razorpay = new Razorpay({
@@ -66,15 +66,44 @@ export async function POST(req: NextRequest) {
     ]);
     const flashSale = (flashSaleRow as FlashSale | null) ?? null;
 
+    // Slot eligibility is decided atomically right here, at the moment the price is
+    // locked in — not by reading claimed_count and hoping it's still accurate. Reading
+    // it (the old approach, via isFlashSaleLive) let a burst of simultaneous checkouts
+    // all see "room available" before any single payment had confirmed and incremented
+    // the counter, so more than max_claims people could get the flash price honored.
     let flashEligible = false;
-    if (isFlashSaleLive(flashSale)) {
+    if (flashSale) {
       const { data: existingClaim } = await supabase
         .from('flash_sale_claims')
         .select('status')
         .eq('flash_sale_id', flashSale.id)
         .eq('user_id', user.id)
         .maybeSingle();
-      flashEligible = existingClaim?.status !== 'confirmed';
+
+      if (existingClaim?.status === 'confirmed') {
+        flashEligible = false; // already used their one claim
+      } else {
+        // Already has a live (non-cancelled) flash-priced order from an earlier
+        // checkout attempt — honor the slot they already reserved instead of
+        // reserving a second one for the same person.
+        const { data: liveOrder } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('flash_sale_id', flashSale.id)
+          .neq('status', 'cancelled')
+          .limit(1)
+          .maybeSingle();
+
+        if (liveOrder) {
+          flashEligible = true;
+        } else {
+          // The RPC re-checks enabled/started/room itself, atomically, so this is the
+          // single source of truth for whether a slot is actually available right now.
+          const { data: newCount } = await supabase.rpc('claim_flash_sale_slot', { p_flash_sale_id: flashSale.id });
+          flashEligible = newCount !== null;
+        }
+      }
     }
 
     const pricing = calculateOrderPricing({
@@ -90,7 +119,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid order total' }, { status: 400 });
     }
 
-    const flashApplied = pricing.lines.some((line) => line.flashUnits > 0);
+    // Covers both flash-sale phases: the per-account ₹1 claimed unit, and the
+    // post-sold-out %-off (which discounts the line's price directly rather than
+    // setting flashUnits) — either one should tag the order as flash-sale-sourced,
+    // not just the claim case, so the admin table's "Offer Claimed" badge (and any
+    // future flash-specific reporting) doesn't miss the sold-out-discount orders.
+    const soldOutDiscountApplied = !!flashSale
+      && isSoldOutDiscountActive(flashSale)
+      && fullCart.some((item) => item.id === flashSale.product_id);
+    const flashApplied = pricing.lines.some((line) => line.flashUnits > 0) || soldOutDiscountApplied;
 
     // Create the Razorpay order for the server-computed total — this is the amount that
     // actually gets charged, regardless of anything the client displayed or sent.

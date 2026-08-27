@@ -320,7 +320,7 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
                       ) : isSoldOutDiscount(product) && (
                         <span className="absolute top-4 left-4 flex items-center gap-1 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
                           <Zap className="w-3.5 h-3.5" />
-                          {flashSale!.after_sold_out_discount_percent}% OFF · <FlashCountdown target={flashSale!.after_sold_out_ends_at!} />
+                          {flashSale!.after_sold_out_discount_percent}% OFF
                         </span>
                       )}
                     </Link>
