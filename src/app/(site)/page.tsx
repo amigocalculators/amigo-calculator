@@ -34,18 +34,22 @@ export default async function Home() {
   // custom artwork; if there isn't one, the product's own photo is used instead so the
   // sale is never silently left out of the rotation.
   const flashProduct = flashSale ? products.find((p) => p.id === flashSale.product_id) : null;
+  const flashNotStartedYet = !!flashSale?.enabled && !!flashProduct && new Date(flashSale.starts_at) > new Date();
   const flashIsLive = !!flashSale?.enabled
     && !!flashProduct
     && new Date(flashSale.starts_at) <= new Date()
     && flashSale.claimed_count < flashSale.max_claims;
-  const flashSlide: AdSlide | null = flashIsLive
+  const flashSlide: AdSlide | null = flashIsLive || flashNotStartedYet
     ? {
         key: `flash-${flashSale!.id}`,
         title: flashSale!.ad_title?.trim() || `⚡ Flash Sale — ₹${flashSale!.sale_price}!`,
         caption: flashSale!.ad_caption?.trim() || `First ${flashSale!.max_claims} orders only!`,
         image_url: flashSale!.ad_image_url || flashProduct!.image,
         href: `/product/${flashSale!.product_id}`,
-        flashProduct: flashProduct!,
+        // Only claimable once actually live — while "coming soon" this stays unset so the
+        // slide shows a countdown instead of a claim button (see flashStartsAt below).
+        flashProduct: flashIsLive ? flashProduct! : undefined,
+        flashStartsAt: flashNotStartedYet ? flashSale!.starts_at : undefined,
       }
     : null;
 

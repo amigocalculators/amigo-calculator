@@ -100,6 +100,9 @@ export interface AdSlide {
   caption: string | null;
   image_url: string;
   href: string;
+  // Set only for a flash sale that hasn't started yet — when present, the CTA button
+  // is replaced with a live countdown to this timestamp instead of a claim action.
+  flashStartsAt?: string;
   // Set only for the flash-sale slide — when present, clicking the CTA claims + adds
   // this exact product to the cart and jumps straight to checkout, instead of just
   // navigating to `href` like a regular promotion does.

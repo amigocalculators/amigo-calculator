@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Phone icon kept for when the phone-login button below is re-enabled
 import { Mail, Phone, Loader2 } from 'lucide-react';
+
+const RESEND_COOLDOWN_SECONDS = 60;
 
 type Step = 'enter-contact' | 'enter-otp' | 'complete-profile';
 type Channel = 'email' | 'phone';
@@ -27,6 +29,8 @@ export default function AccountLoginClient({ resumeProfile, next }: { resumeProf
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resending, setResending] = useState(false);
 
   // Only used on the complete-profile step, for whichever field wasn't just verified.
   const [name, setName] = useState('');
@@ -34,19 +38,46 @@ export default function AccountLoginClient({ resumeProfile, next }: { resumeProf
 
   const toE164Phone = (phone: string) => `+91${phone}`;
 
+  useEffect(() => {
+    if (step !== 'enter-otp' || resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [step, resendCooldown]);
+
+  const sendOtp = async () => {
+    const { error } = channel === 'email'
+      ? await supabase.auth.signInWithOtp({ email: contact })
+      : await supabase.auth.signInWithOtp({ phone: toE164Phone(contact) });
+    if (error) throw error;
+  };
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error } = channel === 'email'
-      ? await supabase.auth.signInWithOtp({ email: contact })
-      : await supabase.auth.signInWithOtp({ phone: toE164Phone(contact) });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
+    try {
+      await sendOtp();
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setStep('enter-otp');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send OTP');
+    } finally {
+      setLoading(false);
     }
-    setStep('enter-otp');
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+    setError('');
+    setResending(true);
+    try {
+      await sendOtp();
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resend OTP');
+    } finally {
+      setResending(false);
+    }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -161,7 +192,12 @@ export default function AccountLoginClient({ resumeProfile, next }: { resumeProf
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               Verify
             </button>
-            <button type="button" onClick={() => { setStep('enter-contact'); setOtp(''); setError(''); }}
+            <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0 || resending}
+              className="w-full text-sm font-medium text-blue-600 hover:text-blue-700 disabled:text-gray-400 flex items-center justify-center gap-2">
+              {resending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+            </button>
+            <button type="button" onClick={() => { setStep('enter-contact'); setOtp(''); setError(''); setResendCooldown(0); }}
               className="w-full text-sm text-gray-500 hover:text-gray-700">
               Use a different email/phone
             </button>

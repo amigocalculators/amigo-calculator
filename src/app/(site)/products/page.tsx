@@ -8,12 +8,13 @@ export const revalidate = 60;
 
 export default async function ProductsPage() {
   const supabase = createAdminClient();
-  const { data } = await supabase
-    .from('products')
-    .select('*')
-    .order('id', { ascending: true });
+  const [{ data }, { data: settings }] = await Promise.all([
+    supabase.from('products').select('*').order('id', { ascending: true }),
+    supabase.from('site_settings').select('buy2get1_enabled').eq('id', 1).single(),
+  ]);
 
   const products = (data ?? []).map((p) => ({ ...p, inStock: p.in_stock }));
+  const buy2Get1Enabled = settings?.buy2get1_enabled ?? true;
 
-  return <ProductsClient products={products} />;
+  return <ProductsClient products={products} buy2Get1Enabled={buy2Get1Enabled} />;
 }

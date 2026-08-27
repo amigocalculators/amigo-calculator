@@ -32,7 +32,7 @@ const priceRanges = [
   { value: '500-100000', label: 'Above ₹500' },
 ];
 
-export default function ProductsClient({ products }: { products: Product[] }) {
+export default function ProductsClient({ products, buy2Get1Enabled }: { products: Product[]; buy2Get1Enabled: boolean }) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -211,7 +211,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
   return (
     <div className="min-h-screen bg-[#f0efef] pt-16 pb-8">
       <div className="max-w-[100rem] mx-auto px-4 sm:px-6 lg:px-8">
-        <Banner10 />
+        {buy2Get1Enabled && <Banner10 />}
 
         {/* Top Bar */}
         <div className="py-4">

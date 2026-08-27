@@ -2,17 +2,18 @@
 
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { ShoppingBag, Gift } from 'lucide-react';
+import { ShoppingBag, Gift, Clock } from 'lucide-react';
 import { AdSlide } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { handleAdSlideClick } from '@/lib/flashSale';
+import FlashCountdown from '@/components/FlashCountdown';
 
 export default function PromotionStrip({ slide }: { slide: AdSlide }) {
   const router = useRouter();
   const { addToCart } = useCartStore();
 
   return (
-    <div className="h-full bg-gradient-to-r from-orange-500 to-green-600 text-white py-4 px-4 sm:px-6 relative overflow-hidden">
+    <div className="h-full bg-gradient-to-r from-red-700 via-orange-600 to-amber-500 text-white py-4 px-4 sm:px-6 relative overflow-hidden">
       <div className="absolute inset-0 bg-black/10"></div>
       <div className="w-full flex items-center justify-between gap-3 relative z-10">
         <div className="flex items-center space-x-3 min-w-0">
@@ -22,13 +23,20 @@ export default function PromotionStrip({ slide }: { slide: AdSlide }) {
             {slide.caption && <p className="text-sm opacity-90 truncate">{slide.caption}</p>}
           </div>
         </div>
-        <button
-          onClick={() => handleAdSlideClick(slide, router, addToCart, (message) => toast.error(message))}
-          className="shrink-0 bg-white text-green-700 px-4 sm:px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
-        >
-          <ShoppingBag className="h-4 w-4" />
-          <span className="hidden sm:inline">Claim Offer</span>
-        </button>
+        {slide.flashStartsAt ? (
+          <div className="shrink-0 bg-white text-red-700 px-4 sm:px-6 py-2 rounded-full font-semibold flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            <FlashCountdown target={slide.flashStartsAt} />
+          </div>
+        ) : (
+          <button
+            onClick={() => handleAdSlideClick(slide, router, addToCart, (message) => toast.error(message))}
+            className="shrink-0 bg-white text-red-700 px-4 sm:px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
+          >
+            <ShoppingBag className="h-4 w-4" />
+            <span className="hidden sm:inline">Claim Offer</span>
+          </button>
+        )}
       </div>
     </div>
   );

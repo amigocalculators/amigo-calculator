@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { X, Gift } from 'lucide-react';
+import { X, Gift, Clock } from 'lucide-react';
 import { AdSlide } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { handleAdSlideClick } from '@/lib/flashSale';
+import FlashCountdown from '@/components/FlashCountdown';
 
 const DISMISSED_KEY = 'promo_card_dismissed';
 const ROTATE_MS = 5000;
@@ -90,12 +91,19 @@ export default function PromotionCard({ slides = [], buy2Get1Enabled = true }: {
               <div className="p-4 pt-3">
                 <p className="font-bold text-gray-900 leading-snug">{slide.title}</p>
                 {slide.caption && <p className="text-sm text-gray-600 mt-0.5">{slide.caption}</p>}
-                <button
-                  onClick={() => claimSlide(slide)}
-                  className="mt-3 w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white font-semibold rounded-full shadow hover:shadow-md transition-all active:scale-95"
-                >
-                  Grab the Offer
-                </button>
+                {slide.flashStartsAt ? (
+                  <div className="mt-3 w-full py-2.5 bg-gray-100 text-gray-800 font-semibold rounded-full flex items-center justify-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    <FlashCountdown target={slide.flashStartsAt} />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => claimSlide(slide)}
+                    className="mt-3 w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white font-semibold rounded-full shadow hover:shadow-md transition-all active:scale-95"
+                  >
+                    Grab the Offer
+                  </button>
+                )}
               </div>
             </>
           ) : (
