@@ -76,6 +76,9 @@ export async function POST() {
         total: p.amount / 100,
         status: 'confirmed',
         created_at: new Date(p.created_at * 1000).toISOString(),
+        // Feeds the customer-facing cancel window — this backfill route is the only
+        // other place besides confirmPaidOrder() that ever inserts a 'confirmed' row.
+        confirmed_at: new Date(p.created_at * 1000).toISOString(),
       };
     });
 

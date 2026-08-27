@@ -62,7 +62,7 @@ export async function confirmPaidOrder(razorpay_order_id: string, razorpay_payme
 
   const { data: order, error } = await supabase
     .from('orders')
-    .update({ status: 'confirmed', razorpay_payment_id })
+    .update({ status: 'confirmed', razorpay_payment_id, confirmed_at: new Date().toISOString() })
     .eq('razorpay_order_id', razorpay_order_id)
     .eq('status', 'pending')
     .select('*')

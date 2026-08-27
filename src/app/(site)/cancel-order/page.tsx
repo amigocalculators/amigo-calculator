@@ -22,7 +22,7 @@ export default async function CancelOrderPage({
   const supabase = createAdminClient();
   const { data: order } = await supabase
     .from('orders')
-    .select('id, razorpay_order_id, razorpay_payment_id, customer_name, customer_email, total, status, items, created_at, address')
+    .select('id, razorpay_order_id, razorpay_payment_id, customer_name, customer_email, total, status, items, created_at, confirmed_at, delivered_at, address')
     .eq('razorpay_order_id', oid)
     .single();
 

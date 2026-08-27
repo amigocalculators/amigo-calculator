@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, Package, Loader2 } from 'lucide-react';
+import { isWithinCancelWindow } from '@/lib/orderCancellation';
 
 type Order = {
   id: string;
@@ -13,10 +14,12 @@ type Order = {
   status: string;
   items: { id: number; name: string; price: number; quantity: number; image: string }[];
   created_at: string;
+  confirmed_at: string | null;
+  delivered_at: string | null;
   address: { line1: string; line2?: string; city: string; state: string; pincode: string };
 } | null;
 
-const CANCELLABLE_STATUSES = ['confirmed', 'processing'];
+const CANCELLABLE_STATUSES = ['confirmed', 'processing', 'delivered'];
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   confirmed:  { label: 'Order Confirmed',  color: 'bg-blue-100 text-blue-700' },
@@ -46,7 +49,7 @@ export default function CancelOrderClient({ order }: { order: Order }) {
     );
   }
 
-  const canCancel = CANCELLABLE_STATUSES.includes(order.status);
+  const canCancel = CANCELLABLE_STATUSES.includes(order.status) && isWithinCancelWindow(order);
   const statusInfo = STATUS_LABELS[order.status] ?? { label: order.status, color: 'bg-gray-100 text-gray-600' };
 
   const handleCancel = async () => {

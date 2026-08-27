@@ -1,13 +1,14 @@
 import Razorpay from 'razorpay';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { isWithinCancelWindow } from '@/lib/orderCancellation';
 
 const razorpay = new Razorpay({
   key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY!,
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
-const CANCELLABLE_STATUSES = ['confirmed', 'processing'];
+const CANCELLABLE_STATUSES = ['confirmed', 'processing', 'delivered'];
 
 const sendEmail = (payload: object) =>
   fetch('https://api.emailjs.com/api/v1.0/email/send', {
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    if (!CANCELLABLE_STATUSES.includes(order.status)) {
+    if (!CANCELLABLE_STATUSES.includes(order.status) || !isWithinCancelWindow(order)) {
       return NextResponse.json(
         { error: `Order cannot be cancelled. Current status: ${order.status}` },
         { status: 400 }

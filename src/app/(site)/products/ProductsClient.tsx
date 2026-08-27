@@ -33,7 +33,9 @@ const priceRanges = [
   { value: '500-100000', label: 'Above ₹500' },
 ];
 
-export default function ProductsClient({ products, buy2Get1Enabled }: { products: Product[]; buy2Get1Enabled: boolean }) {
+export default function ProductsClient({ products, buy2Get1Enabled, initialFlashSale = null }: {
+  products: Product[]; buy2Get1Enabled: boolean; initialFlashSale?: FlashSale | null;
+}) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -42,9 +44,9 @@ export default function ProductsClient({ products, buy2Get1Enabled }: { products
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('featured');
   const [expandedSections, setExpandedSections] = useState({ categories: true, price: true });
-  const [flashSale, setFlashSale] = useState<FlashSale | null>(null);
+  const [flashSale, setFlashSale] = useState<FlashSale | null>(initialFlashSale);
   const [flashAlreadyClaimed, setFlashAlreadyClaimed] = useState(false);
-  const [flashLive, setFlashLive] = useState(false);
+  const [flashLive, setFlashLive] = useState(() => isFlashSaleLive(initialFlashSale));
   const [loggedIn, setLoggedIn] = useState(false);
 
   const { addToCart } = useCartStore();

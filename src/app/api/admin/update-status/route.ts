@@ -66,8 +66,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update status in Supabase
-    await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+    // Update status in Supabase. delivered_at feeds the customer-facing return window
+    // (cancellable again for a couple of days after delivery) — created_at alone
+    // doesn't tell us when the order actually got delivered.
+    await supabase
+      .from('orders')
+      .update({ status: newStatus, ...(newStatus === 'delivered' ? { delivered_at: new Date().toISOString() } : {}) })
+      .eq('id', orderId);
 
     // Initiate Razorpay refund if cancelling
     if (newStatus === 'cancelled' && order.razorpay_payment_id) {
