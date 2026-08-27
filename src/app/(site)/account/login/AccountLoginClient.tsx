@@ -184,7 +184,7 @@ export default function AccountLoginClient({ resumeProfile, next }: { resumeProf
 
         {step === 'enter-otp' && (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <input type="text" required inputMode="numeric" placeholder="6-digit code" value={otp}
+            <input type="text" required inputMode="numeric" placeholder="Enter the code" value={otp}
               onChange={(e) => setOtp(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none text-center tracking-widest text-lg" />
             <button type="submit" disabled={loading}

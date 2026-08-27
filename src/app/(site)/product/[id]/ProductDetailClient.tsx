@@ -10,6 +10,7 @@ import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 import { isFlashSaleLive, handleFlashClaim } from '@/lib/flashSale';
 import Banner10 from '@/components/Banner/Banner10';
+import FlashCountdown from '@/components/FlashCountdown';
 import {
   ShoppingCart,
   Share2,
@@ -48,6 +49,9 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
   const [claiming, setClaiming] = useState(false);
 
   const showClaim = isFlashProduct && flashLive && !alreadyClaimed;
+  // Re-evaluated on every render (not memoized) so it naturally flips to false the moment
+  // flashLive's own scheduled timer fires, with no separate timer needed here.
+  const flashComingSoon = isFlashProduct && !!flashSale && !flashLive && new Date(flashSale.starts_at) > new Date();
 
   // The Coming-Soon -> Live transition is time-based, not event-based — schedule it to
   // flip at the exact moment rather than polling, so it's immune to this page's ISR cache.
@@ -193,7 +197,12 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                   className="object-contain transition-transform duration-300 hover:scale-105"
                   priority
                 />
-                {product.inStock ? (
+                {flashComingSoon ? (
+                  <div className="absolute top-4 left-4 bg-white text-red-700 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow">
+                    <Zap className="w-3.5 h-3.5" />
+                    <FlashCountdown target={flashSale!.starts_at} />
+                  </div>
+                ) : product.inStock ? (
                   <div className="absolute top-4 left-4 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">In Stock</div>
                 ) : (
                   <div className="absolute top-4 left-4 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">Out of Stock</div>
@@ -263,6 +272,13 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                   </div>
                 )}
 
+                {flashComingSoon && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-700 flex items-center gap-2">
+                    <Zap className="w-4 h-4 shrink-0" />
+                    {flashSale!.coming_soon_message?.trim() || `Flash Sale starting soon — ₹${flashSale!.sale_price.toFixed(2)}!`}
+                  </div>
+                )}
+
                 {showClaim ? (
                   <>
                     <div className="inline-flex items-center gap-1.5 mb-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
@@ -310,13 +326,13 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                 <div className="flex flex-col sm:flex-row gap-4 mb-6">
                   <button
                     onClick={isInCart ? () => router.push('/cart') : showClaim ? handleClaimClick : handleAddToCart}
-                    disabled={!product.inStock || claiming}
+                    disabled={!product.inStock || claiming || flashComingSoon}
                     className={`py-3 px-6 rounded-lg flex items-center justify-center gap-2 disabled:opacity-60 ${
                       isInCart ? 'bg-orange-400 hover:bg-orange-500' : showClaim ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
                     } text-white transition-colors`}
                   >
                     {showClaim ? <Zap className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
-                    {isInCart ? 'View Cart' : claiming ? 'Claiming…' : showClaim ? `Claim for ₹${flashSale!.sale_price.toFixed(2)}` : 'Add to Cart'}
+                    {isInCart ? 'View Cart' : claiming ? 'Claiming…' : showClaim ? `Claim for ₹${flashSale!.sale_price.toFixed(2)}` : flashComingSoon ? 'Available Soon' : 'Add to Cart'}
                   </button>
 
                   <div className="relative">
