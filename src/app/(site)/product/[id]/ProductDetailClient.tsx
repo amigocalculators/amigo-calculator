@@ -47,7 +47,6 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [claiming, setClaiming] = useState(false);
 
-  const showComingSoon = isFlashProduct && !!flashSale?.enabled && !flashLive && new Date(flashSale.starts_at) > new Date();
   const showClaim = isFlashProduct && flashLive && !alreadyClaimed;
 
   // The Coming-Soon -> Live transition is time-based, not event-based — schedule it to
@@ -72,6 +71,7 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
   useEffect(() => {
     if (!showClaim) return;
     if (typeof window === 'undefined' || !window.location.search.includes('claim=1')) return;
+    const goToCart = window.location.search.includes('goto=cart');
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
@@ -88,7 +88,9 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
         onError: (message) => toast.error(message),
       });
       setClaiming(false);
-      router.replace(`/product/${product.id}`);
+      // The homepage ad tags its login redirect with goto=cart since the point of
+      // clicking it is to check out, not linger on the product page.
+      router.replace(goToCart ? '/cart' : `/product/${product.id}`);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showClaim]);
@@ -261,14 +263,6 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                   </div>
                 )}
 
-                {showComingSoon && (
-                  <div className="inline-flex items-center gap-1.5 mb-2 px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
-                    <Zap className="w-3.5 h-3.5" />
-                    {flashSale!.coming_soon_message?.trim()
-                      ? flashSale!.coming_soon_message
-                      : `Flash Sale Coming ${new Date(flashSale!.starts_at).toLocaleString('en-IN', { weekday: 'long', hour: 'numeric', minute: '2-digit' })}`}
-                  </div>
-                )}
                 {showClaim ? (
                   <>
                     <div className="inline-flex items-center gap-1.5 mb-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">

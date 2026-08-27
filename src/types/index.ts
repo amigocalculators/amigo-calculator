@@ -85,7 +85,6 @@ export interface FlashSale {
   claimed_count: number;
   starts_at: string;
   enabled: boolean;
-  coming_soon_message: string | null;
   ad_image_url: string | null;
   ad_title: string | null;
   ad_caption: string | null;
@@ -101,6 +100,10 @@ export interface AdSlide {
   caption: string | null;
   image_url: string;
   href: string;
+  // Set only for the flash-sale slide — when present, clicking the CTA claims + adds
+  // this exact product to the cart and jumps straight to checkout, instead of just
+  // navigating to `href` like a regular promotion does.
+  flashProduct?: Product;
 }
 
 export interface FlashSaleClaim {

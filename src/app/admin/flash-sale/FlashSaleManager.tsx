@@ -35,8 +35,6 @@ export default function FlashSaleManager({ initialFlashSale, products, initialLe
   const [salePrice, setSalePrice] = useState(initialFlashSale?.sale_price ?? 1);
   const [maxClaims, setMaxClaims] = useState(initialFlashSale?.max_claims ?? 10);
   const [startsAt, setStartsAt] = useState(initialFlashSale ? toDatetimeLocalValue(initialFlashSale.starts_at) : '');
-  const [enabled, setEnabled] = useState(initialFlashSale?.enabled ?? true);
-  const [comingSoonMessage, setComingSoonMessage] = useState(initialFlashSale?.coming_soon_message ?? '');
   const [productSearch, setProductSearch] = useState('');
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [adImageUrl, setAdImageUrl] = useState(initialFlashSale?.ad_image_url ?? '');
@@ -64,8 +62,10 @@ export default function FlashSaleManager({ initialFlashSale, products, initialLe
           sale_price: salePrice,
           max_claims: maxClaims,
           starts_at: new Date(startsAt).toISOString(),
-          enabled,
-          coming_soon_message: comingSoonMessage,
+          // No standalone form control for this — a brand-new sale always starts
+          // enabled; editing an existing one preserves whatever the pill last set,
+          // so tweaking price/schedule/copy here can't accidentally flip it off.
+          enabled: flashSale?.enabled ?? true,
           ad_image_url: adImageUrl,
           ad_title: adTitle,
           ad_caption: adCaption,
@@ -96,7 +96,6 @@ export default function FlashSaleManager({ initialFlashSale, products, initialLe
           max_claims: flashSale.max_claims,
           starts_at: flashSale.starts_at,
           enabled: next,
-          coming_soon_message: flashSale.coming_soon_message,
           ad_image_url: flashSale.ad_image_url,
           ad_title: flashSale.ad_title,
           ad_caption: flashSale.ad_caption,
@@ -105,7 +104,6 @@ export default function FlashSaleManager({ initialFlashSale, products, initialLe
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Update failed');
       setFlashSale(data.flashSale);
-      setEnabled(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Update failed');
     } finally {
@@ -201,21 +199,6 @@ export default function FlashSaleManager({ initialFlashSale, products, initialLe
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">&quot;Coming Soon&quot; message (optional)</label>
-            <input
-              type="text" value={comingSoonMessage}
-              onChange={(e) => setComingSoonMessage(e.target.value)}
-              placeholder={`Leave blank to just show "Flash Sale Coming ${startsAt ? new Date(startsAt).toLocaleString('en-IN', { weekday: 'long', hour: 'numeric', minute: '2-digit' }) : '<start time>'}"`}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-            <p className="text-xs text-gray-500 mt-1">Shown on the product page before the sale goes live.</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 mt-4">
-          <input type="checkbox" id="fs-enabled" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="w-4 h-4" />
-          <label htmlFor="fs-enabled" className="text-sm font-medium text-gray-700">Enabled</label>
         </div>
 
         <div className="border-t pt-4 mt-4">

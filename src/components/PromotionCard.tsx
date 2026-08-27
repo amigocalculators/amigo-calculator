@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import { X, Gift } from 'lucide-react';
 import { AdSlide } from '@/types';
+import { useCartStore } from '@/store/cartStore';
+import { handleAdSlideClick } from '@/lib/flashSale';
 
 const DISMISSED_KEY = 'promo_card_dismissed';
 const ROTATE_MS = 5000;
@@ -17,6 +20,7 @@ export default function PromotionCard({ slides = [], buy2Get1Enabled = true }: {
   const [index, setIndex] = useState(0);
   const [fading, setFading] = useState(false);
   const router = useRouter();
+  const { addToCart } = useCartStore();
 
   useEffect(() => {
     if (slides.length === 0 && !buy2Get1Enabled) return; // nothing active to advertise
@@ -45,9 +49,14 @@ export default function PromotionCard({ slides = [], buy2Get1Enabled = true }: {
     setTimeout(() => setVisible(false), 300);
   };
 
-  const claim = (href: string) => {
+  const claimSlide = (s: AdSlide) => {
     dismiss();
-    router.push(href);
+    handleAdSlideClick(s, router, addToCart, (message) => toast.error(message));
+  };
+
+  const claimGeneric = () => {
+    dismiss();
+    router.push('/products');
   };
 
   if (!visible) return null;
@@ -74,7 +83,7 @@ export default function PromotionCard({ slides = [], buy2Get1Enabled = true }: {
         <div className={`transition-opacity duration-300 ${fading ? 'opacity-0' : 'opacity-100'}`}>
           {slide ? (
             <>
-              <button onClick={() => claim(slide.href)} className="block w-full bg-white">
+              <button onClick={() => claimSlide(slide)} className="block w-full bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={slide.image_url} alt={slide.title} className="w-full h-36 object-contain bg-white" />
               </button>
@@ -82,7 +91,7 @@ export default function PromotionCard({ slides = [], buy2Get1Enabled = true }: {
                 <p className="font-bold text-gray-900 leading-snug">{slide.title}</p>
                 {slide.caption && <p className="text-sm text-gray-600 mt-0.5">{slide.caption}</p>}
                 <button
-                  onClick={() => claim(slide.href)}
+                  onClick={() => claimSlide(slide)}
                   className="mt-3 w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white font-semibold rounded-full shadow hover:shadow-md transition-all active:scale-95"
                 >
                   Grab the Offer
@@ -97,7 +106,7 @@ export default function PromotionCard({ slides = [], buy2Get1Enabled = true }: {
               </div>
               <p className="text-sm text-gray-600 mt-1">Limited time offer on all items.</p>
               <button
-                onClick={() => claim('/products')}
+                onClick={claimGeneric}
                 className="mt-3 w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white font-semibold rounded-full shadow hover:shadow-md transition-all active:scale-95"
               >
                 Grab the Offer

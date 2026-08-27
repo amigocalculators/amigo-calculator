@@ -1,11 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import { ShoppingBag, Gift } from 'lucide-react';
 import { AdSlide } from '@/types';
+import { useCartStore } from '@/store/cartStore';
+import { handleAdSlideClick } from '@/lib/flashSale';
 
 export default function PromotionStrip({ slide }: { slide: AdSlide }) {
   const router = useRouter();
+  const { addToCart } = useCartStore();
+
   return (
     <div className="h-full bg-gradient-to-r from-orange-500 to-green-600 text-white py-4 px-4 sm:px-6 relative overflow-hidden">
       <div className="absolute inset-0 bg-black/10"></div>
@@ -18,7 +23,7 @@ export default function PromotionStrip({ slide }: { slide: AdSlide }) {
           </div>
         </div>
         <button
-          onClick={() => router.push(slide.href)}
+          onClick={() => handleAdSlideClick(slide, router, addToCart, (message) => toast.error(message))}
           className="shrink-0 bg-white text-green-700 px-4 sm:px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
         >
           <ShoppingBag className="h-4 w-4" />

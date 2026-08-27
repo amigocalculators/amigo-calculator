@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
   }
 
-  const { product_id, sale_price, max_claims, starts_at, enabled, coming_soon_message, ad_image_url, ad_title, ad_caption } = await req.json();
+  const { product_id, sale_price, max_claims, starts_at, enabled, ad_image_url, ad_title, ad_caption } = await req.json();
 
   if (!product_id || !sale_price || !max_claims || !starts_at) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
     .upsert(
       {
         product_id, sale_price, max_claims, starts_at, enabled,
-        coming_soon_message: coming_soon_message || null,
         ad_image_url: ad_image_url || null,
         ad_title: ad_title || null,
         ad_caption: ad_caption || null,

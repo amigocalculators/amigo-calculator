@@ -30,18 +30,22 @@ export default async function Home() {
     href: '/products',
   }));
 
-  // Advertised site-wide as soon as it's enabled — the uploaded ad image is optional
+  // Advertised site-wide once it's actually live — the uploaded ad image is optional
   // custom artwork; if there isn't one, the product's own photo is used instead so the
-  // sale is never silently left out of the rotation. Shown through its "Coming Soon"
-  // phase too, not just once live.
+  // sale is never silently left out of the rotation.
   const flashProduct = flashSale ? products.find((p) => p.id === flashSale.product_id) : null;
-  const flashSlide: AdSlide | null = flashSale?.enabled && flashProduct
+  const flashIsLive = !!flashSale?.enabled
+    && !!flashProduct
+    && new Date(flashSale.starts_at) <= new Date()
+    && flashSale.claimed_count < flashSale.max_claims;
+  const flashSlide: AdSlide | null = flashIsLive
     ? {
-        key: `flash-${flashSale.id}`,
-        title: flashSale.ad_title?.trim() || `⚡ Flash Sale — ₹${flashSale.sale_price}!`,
-        caption: flashSale.ad_caption?.trim() || `First ${flashSale.max_claims} orders only!`,
-        image_url: flashSale.ad_image_url || flashProduct.image,
-        href: `/product/${flashSale.product_id}`,
+        key: `flash-${flashSale!.id}`,
+        title: flashSale!.ad_title?.trim() || `⚡ Flash Sale — ₹${flashSale!.sale_price}!`,
+        caption: flashSale!.ad_caption?.trim() || `First ${flashSale!.max_claims} orders only!`,
+        image_url: flashSale!.ad_image_url || flashProduct!.image,
+        href: `/product/${flashSale!.product_id}`,
+        flashProduct: flashProduct!,
       }
     : null;
 
