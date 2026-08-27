@@ -9,7 +9,6 @@ import { Product, FlashSale } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 import { isFlashSaleLive, handleFlashClaim, isSoldOutDiscountActive, getSoldOutDiscountPrice } from '@/lib/flashSale';
-import Banner10 from '@/components/Banner/Banner10';
 import FlashCountdown from '@/components/FlashCountdown';
 import {
   ShoppingCart,
@@ -187,8 +186,6 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
   return (
     <div className="pt-20 pb-12 bg-gray-200">
       <div className="max-w-7xl mx-auto px-4">
-        <Banner10 />
-
         {/* Breadcrumb */}
         <div className="flex items-center text-sm text-gray-500 py-4">
           <button onClick={() => router.push('/')} className="hover:text-gray-700">Home</button>
