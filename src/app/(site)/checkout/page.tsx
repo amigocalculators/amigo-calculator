@@ -477,7 +477,6 @@ export default function CheckoutPage() {
                     <span>FREE</span>
                   </div>
                 )}
-                <div className="flex justify-between text-gray-600"><span>Shipping</span><span className="text-green-600">Free</span></div>
                 <div className="flex justify-between text-lg font-bold"><span>Total</span><span>₹{pricing.total.toFixed(2)}</span></div>
                 {pricing.discount > 0 && (
                   <div className="text-center">
