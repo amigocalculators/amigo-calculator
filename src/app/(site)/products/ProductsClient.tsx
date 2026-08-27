@@ -11,6 +11,7 @@ import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 import { getFlashSaleStatus, isFlashSaleLive, handleFlashClaim } from '@/lib/flashSale';
 import Banner10 from '@/components/Banner/Banner10';
+import FlashCountdown from '@/components/FlashCountdown';
 import {
   Search,
   X,
@@ -43,6 +44,7 @@ export default function ProductsClient({ products, buy2Get1Enabled }: { products
   const [expandedSections, setExpandedSections] = useState({ categories: true, price: true });
   const [flashSale, setFlashSale] = useState<FlashSale | null>(null);
   const [flashAlreadyClaimed, setFlashAlreadyClaimed] = useState(false);
+  const [flashLive, setFlashLive] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
 
   const { addToCart } = useCartStore();
@@ -51,12 +53,26 @@ export default function ProductsClient({ products, buy2Get1Enabled }: { products
     getFlashSaleStatus().then(({ sale, alreadyClaimed }) => {
       setFlashSale(sale);
       setFlashAlreadyClaimed(alreadyClaimed);
+      setFlashLive(isFlashSaleLive(sale));
     });
     createClient().auth.getUser().then(({ data: { user } }) => setLoggedIn(!!user));
   }, []);
 
+  // The Coming-Soon -> Live transition is time-based, not event-based — schedule it to
+  // flip at the exact moment rather than polling, mirroring ProductDetailClient.
+  useEffect(() => {
+    if (!flashSale || flashLive) return;
+    const msUntilStart = new Date(flashSale.starts_at).getTime() - Date.now();
+    if (msUntilStart <= 0) return;
+    const timer = setTimeout(() => setFlashLive(isFlashSaleLive(flashSale)), msUntilStart);
+    return () => clearTimeout(timer);
+  }, [flashSale, flashLive]);
+
   const isClaimableFlash = (product: Product) =>
-    product.id === flashSale?.product_id && isFlashSaleLive(flashSale) && !flashAlreadyClaimed;
+    product.id === flashSale?.product_id && flashLive && !flashAlreadyClaimed;
+
+  const isComingSoonFlash = (product: Product) =>
+    product.id === flashSale?.product_id && !!flashSale?.enabled && !flashLive && new Date(flashSale.starts_at) > new Date();
 
   const handleAddToCart = async (product: Product) => {
     if (isClaimableFlash(product)) {
@@ -263,7 +279,12 @@ export default function ProductsClient({ products, buy2Get1Enabled }: { products
                           className="object-contain transform transition-transform duration-500 group-hover:scale-105"
                         />
                       </div>
-                      {product.inStock ? (
+                      {isComingSoonFlash(product) ? (
+                        <span className="absolute top-4 right-4 bg-white text-red-700 px-3 py-1 rounded-full text-sm font-bold shadow-lg flex items-center gap-1.5">
+                          <Zap className="w-3.5 h-3.5" />
+                          <FlashCountdown target={flashSale!.starts_at} />
+                        </span>
+                      ) : product.inStock ? (
                         <span className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg">
                           In Stock
                         </span>
@@ -303,9 +324,9 @@ export default function ProductsClient({ products, buy2Get1Enabled }: { products
                         </span>
                         <button
                           onClick={() => handleAddToCart(product)}
-                          disabled={!product.inStock}
+                          disabled={!product.inStock || isComingSoonFlash(product)}
                           className={`card-btn px-6 py-3 rounded-xl flex items-center gap-2 font-medium transition-all duration-200 ${
-                            product.inStock
+                            product.inStock && !isComingSoonFlash(product)
                               ? 'hover:border-green-700 hover:bg-green-700 shadow-md hover:shadow-lg'
                               : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                           }`}
