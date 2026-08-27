@@ -89,6 +89,8 @@ export interface FlashSale {
   ad_title: string | null;
   ad_caption: string | null;
   coming_soon_message: string | null;
+  after_sold_out_discount_percent: number | null;
+  after_sold_out_ends_at: string | null;
   created_at: string;
 }
 

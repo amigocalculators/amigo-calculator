@@ -18,7 +18,12 @@ function statusOf(sale: FlashSale | null, now: Date): { label: string; color: st
   if (!sale) return { label: 'Not configured', color: 'bg-gray-100 text-gray-500' };
   if (!sale.enabled) return { label: 'Off', color: 'bg-gray-100 text-gray-500' };
   if (new Date(sale.starts_at) > now) return { label: `Coming Soon — ${new Date(sale.starts_at).toLocaleString('en-IN')}`, color: 'bg-blue-100 text-blue-700' };
-  if (sale.claimed_count >= sale.max_claims) return { label: `Sold Out — ${sale.claimed_count}/${sale.max_claims}`, color: 'bg-red-100 text-red-700' };
+  if (sale.claimed_count >= sale.max_claims) {
+    if (sale.after_sold_out_discount_percent && sale.after_sold_out_ends_at && new Date(sale.after_sold_out_ends_at) > now) {
+      return { label: `${sale.after_sold_out_discount_percent}% Off — until ${new Date(sale.after_sold_out_ends_at).toLocaleString('en-IN')}`, color: 'bg-purple-100 text-purple-700' };
+    }
+    return { label: `Sold Out — ${sale.claimed_count}/${sale.max_claims}`, color: 'bg-red-100 text-red-700' };
+  }
   return { label: `Live — ${sale.claimed_count}/${sale.max_claims} claimed`, color: 'bg-green-100 text-green-700' };
 }
 
@@ -40,6 +45,10 @@ export default function FlashSaleManager({ initialFlashSale, products, initialLe
   const [adImageUrl, setAdImageUrl] = useState(initialFlashSale?.ad_image_url ?? '');
   const [adTitle, setAdTitle] = useState(initialFlashSale?.ad_title ?? '');
   const [adCaption, setAdCaption] = useState(initialFlashSale?.ad_caption ?? '');
+  const [afterSoldOutDiscountPercent, setAfterSoldOutDiscountPercent] = useState<number | ''>(initialFlashSale?.after_sold_out_discount_percent ?? '');
+  const [afterSoldOutEndsAt, setAfterSoldOutEndsAt] = useState(
+    initialFlashSale?.after_sold_out_ends_at ? toDatetimeLocalValue(initialFlashSale.after_sold_out_ends_at) : ''
+  );
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -50,6 +59,10 @@ export default function FlashSaleManager({ initialFlashSale, products, initialLe
     setError('');
     if (!startsAt) {
       setError('Set a start date/time.');
+      return;
+    }
+    if (afterSoldOutDiscountPercent && !afterSoldOutEndsAt) {
+      setError('Set an end date/time for the after-sold-out discount.');
       return;
     }
     setSaving(true);
@@ -69,6 +82,8 @@ export default function FlashSaleManager({ initialFlashSale, products, initialLe
           ad_image_url: adImageUrl,
           ad_title: adTitle,
           ad_caption: adCaption,
+          after_sold_out_discount_percent: afterSoldOutDiscountPercent || null,
+          after_sold_out_ends_at: afterSoldOutEndsAt ? new Date(afterSoldOutEndsAt).toISOString() : null,
         }),
       });
       const data = await res.json();
@@ -99,6 +114,8 @@ export default function FlashSaleManager({ initialFlashSale, products, initialLe
           ad_image_url: flashSale.ad_image_url,
           ad_title: flashSale.ad_title,
           ad_caption: flashSale.ad_caption,
+          after_sold_out_discount_percent: flashSale.after_sold_out_discount_percent,
+          after_sold_out_ends_at: flashSale.after_sold_out_ends_at,
         }),
       });
       const data = await res.json();
@@ -198,6 +215,34 @@ export default function FlashSaleManager({ initialFlashSale, products, initialLe
               onChange={(e) => setStartsAt(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
             />
+          </div>
+        </div>
+
+        <div className="border-t pt-4 mt-4">
+          <p className="text-sm font-semibold text-gray-700 mb-1">After all claims are gone</p>
+          <p className="text-xs text-gray-500 mb-3">
+            Optional. Once all {maxClaims} claims are used up, the product can keep selling at a
+            discount for everyone (no login/limit) until the end date/time below. Leave both blank
+            to just go back to full price once sold out, like before.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Discount (%)</label>
+              <input
+                type="number" min={1} max={99} value={afterSoldOutDiscountPercent}
+                onChange={(e) => setAfterSoldOutDiscountPercent(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder="e.g. 50"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Discount ends at</label>
+              <input
+                type="datetime-local" value={afterSoldOutEndsAt}
+                onChange={(e) => setAfterSoldOutEndsAt(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
           </div>
         </div>
 

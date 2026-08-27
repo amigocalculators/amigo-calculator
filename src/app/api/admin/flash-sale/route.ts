@@ -7,10 +7,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
   }
 
-  const { product_id, sale_price, max_claims, starts_at, enabled, ad_image_url, ad_title, ad_caption } = await req.json();
+  const {
+    product_id, sale_price, max_claims, starts_at, enabled, ad_image_url, ad_title, ad_caption,
+    after_sold_out_discount_percent, after_sold_out_ends_at,
+  } = await req.json();
 
   if (!product_id || !sale_price || !max_claims || !starts_at) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  }
+  if (after_sold_out_discount_percent && !after_sold_out_ends_at) {
+    return NextResponse.json({ error: 'Set an end date/time for the after-sold-out discount' }, { status: 400 });
   }
 
   const supabase = createAdminClient();
@@ -25,6 +31,8 @@ export async function POST(req: NextRequest) {
         ad_image_url: ad_image_url || null,
         ad_title: ad_title || null,
         ad_caption: ad_caption || null,
+        after_sold_out_discount_percent: after_sold_out_discount_percent || null,
+        after_sold_out_ends_at: after_sold_out_ends_at || null,
       },
       { onConflict: 'product_id' }
     )

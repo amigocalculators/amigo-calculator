@@ -6,6 +6,21 @@ export function isFlashSaleLive(sale: FlashSale | null): sale is FlashSale {
   return sale.enabled && new Date(sale.starts_at) <= new Date() && sale.claimed_count < sale.max_claims;
 }
 
+// Second phase: once every claim slot is gone, an admin-configured %-off can kick in
+// for everyone (no login/claim gating, no per-account limit) until a configured
+// end date/time. Both fields are opt-in (nullable) — a sale with neither set just
+// reverts to full price once sold out, same as before this existed.
+export function isSoldOutDiscountActive(sale: FlashSale | null): sale is FlashSale {
+  if (!sale || !sale.enabled) return false;
+  if (sale.claimed_count < sale.max_claims) return false;
+  if (!sale.after_sold_out_discount_percent || !sale.after_sold_out_ends_at) return false;
+  return new Date(sale.after_sold_out_ends_at) > new Date();
+}
+
+export function getSoldOutDiscountPrice(sale: FlashSale, originalPrice: number): number {
+  return Math.round(originalPrice * (1 - sale.after_sold_out_discount_percent! / 100) * 100) / 100;
+}
+
 // Public flash-sale row (if any) plus whether the current session's user has already
 // used their one-per-account claim on it. `flash_sales` is public-readable; the
 // "have I claimed" check relies on the flash_sale_claims RLS policy that only ever

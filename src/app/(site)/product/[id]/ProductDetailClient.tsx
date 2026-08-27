@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 import { Product, FlashSale } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
-import { isFlashSaleLive, handleFlashClaim } from '@/lib/flashSale';
+import { isFlashSaleLive, handleFlashClaim, isSoldOutDiscountActive, getSoldOutDiscountPrice } from '@/lib/flashSale';
 import Banner10 from '@/components/Banner/Banner10';
 import FlashCountdown from '@/components/FlashCountdown';
 import {
@@ -52,6 +52,20 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
   // Re-evaluated on every render (not memoized) so it naturally flips to false the moment
   // flashLive's own scheduled timer fires, with no separate timer needed here.
   const flashComingSoon = isFlashProduct && !!flashSale && !flashLive && new Date(flashSale.starts_at) > new Date();
+
+  // Second flash-sale phase: once claim slots are gone, an admin-configured %-off can
+  // apply to everyone (no login/claim gating) until a configured end time. Tracked as
+  // its own scheduled-flip state, mirroring flashLive, so it turns off automatically at
+  // the exact end moment instead of needing a fresh page load.
+  const [soldOutDiscountLive, setSoldOutDiscountLive] = useState(() => isFlashProduct && isSoldOutDiscountActive(flashSale));
+  useEffect(() => {
+    if (!soldOutDiscountLive || !flashSale?.after_sold_out_ends_at) return;
+    const msUntilEnd = new Date(flashSale.after_sold_out_ends_at).getTime() - Date.now();
+    if (msUntilEnd <= 0) { setSoldOutDiscountLive(false); return; }
+    const timer = setTimeout(() => setSoldOutDiscountLive(false), msUntilEnd);
+    return () => clearTimeout(timer);
+  }, [soldOutDiscountLive, flashSale]);
+  const soldOutDiscountPrice = soldOutDiscountLive && flashSale ? getSoldOutDiscountPrice(flashSale, product.price) : null;
 
   // The Coming-Soon -> Live transition is time-based, not event-based — schedule it to
   // flip at the exact moment rather than polling, so it's immune to this page's ISR cache.
@@ -202,6 +216,11 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                     <Zap className="w-3.5 h-3.5" />
                     <FlashCountdown target={flashSale!.starts_at} />
                   </div>
+                ) : soldOutDiscountLive ? (
+                  <div className="absolute top-4 left-4 bg-purple-600 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow">
+                    <Zap className="w-3.5 h-3.5" />
+                    {flashSale!.after_sold_out_discount_percent}% OFF · <FlashCountdown target={flashSale!.after_sold_out_ends_at!} />
+                  </div>
                 ) : product.inStock ? (
                   <div className="absolute top-4 left-4 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">In Stock</div>
                 ) : (
@@ -287,6 +306,15 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                     </div>
                     <div className="text-2xl font-bold"><del>₹{product.price.toFixed(2)}</del></div>
                     <div className="text-3xl font-bold mb-6 text-red-600">₹{flashSale!.sale_price.toFixed(2)}</div>
+                  </>
+                ) : soldOutDiscountPrice !== null ? (
+                  <>
+                    <div className="inline-flex items-center gap-1.5 mb-1 px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
+                      <Zap className="w-3.5 h-3.5" />
+                      {flashSale!.after_sold_out_discount_percent}% off — ends in <FlashCountdown target={flashSale!.after_sold_out_ends_at!} />
+                    </div>
+                    <div className="text-2xl font-bold"><del>₹{product.price.toFixed(2)}</del></div>
+                    <div className="text-3xl font-bold mb-6 text-purple-600">₹{soldOutDiscountPrice.toFixed(2)}</div>
                   </>
                 ) : (
                   <>

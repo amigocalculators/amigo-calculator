@@ -1,5 +1,6 @@
 import { CartItem, Promotion, FlashSale } from '@/types';
 import { buildFreeGiftItem, resolveOfferChoice, ResolvedOffer } from './promotions';
+import { isSoldOutDiscountActive, getSoldOutDiscountPrice } from './flashSale';
 
 interface Buy2Get1Result {
   isEligible: boolean;
@@ -71,7 +72,14 @@ export interface OrderPricingInput {
 // cart *before* Buy 2 Get 1 runs, so the same physical unit can never absorb both
 // discounts at once.
 export function calculateOrderPricing(input: OrderPricingInput): OrderPricingResult {
-  const { cart, buy2Get1Enabled, eligibleGiftPromotions, selectedOfferType, flashSale, flashEligible } = input;
+  const { cart: rawCart, buy2Get1Enabled, eligibleGiftPromotions, selectedOfferType, flashSale, flashEligible } = input;
+
+  // Second flash-sale phase: once claim slots are gone, an admin-configured %-off can
+  // apply to every unit of that product for everyone until a configured end time — a
+  // plain price override, unlike the single-unit/one-per-account claim discount below.
+  const cart = flashSale && isSoldOutDiscountActive(flashSale)
+    ? rawCart.map((item) => item.id === flashSale.product_id ? { ...item, price: getSoldOutDiscountPrice(flashSale, item.price) } : item)
+    : rawCart;
 
   const flashLine = flashSale && flashEligible ? cart.find((i) => i.id === flashSale.product_id) : undefined;
 

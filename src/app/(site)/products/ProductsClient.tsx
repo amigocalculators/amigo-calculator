@@ -9,7 +9,7 @@ import { toast } from 'react-hot-toast';
 import { Product, FlashSale } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
-import { getFlashSaleStatus, isFlashSaleLive, handleFlashClaim } from '@/lib/flashSale';
+import { getFlashSaleStatus, isFlashSaleLive, handleFlashClaim, isSoldOutDiscountActive, getSoldOutDiscountPrice } from '@/lib/flashSale';
 import Banner10 from '@/components/Banner/Banner10';
 import FlashCountdown from '@/components/FlashCountdown';
 import {
@@ -70,11 +70,28 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
     return () => clearTimeout(timer);
   }, [flashSale, flashLive]);
 
+  // isSoldOutDiscount() re-checks the end time fresh on every call, so this just needs
+  // to force one re-render at the exact moment the after-sold-out discount ends.
+  const [, forceRerender] = useState(0);
+  useEffect(() => {
+    if (!flashSale?.after_sold_out_ends_at) return;
+    const msUntilEnd = new Date(flashSale.after_sold_out_ends_at).getTime() - Date.now();
+    if (msUntilEnd <= 0) return;
+    const timer = setTimeout(() => forceRerender((n) => n + 1), msUntilEnd);
+    return () => clearTimeout(timer);
+  }, [flashSale]);
+
   const isClaimableFlash = (product: Product) =>
     product.id === flashSale?.product_id && flashLive && !flashAlreadyClaimed;
 
   const isComingSoonFlash = (product: Product) =>
     product.id === flashSale?.product_id && !!flashSale?.enabled && !flashLive && new Date(flashSale.starts_at) > new Date();
+
+  // Second flash-sale phase: once claim slots are gone, an admin-configured %-off
+  // applies to everyone until a configured end time — see ProductDetailClient for
+  // the matching per-product-page treatment.
+  const isSoldOutDiscount = (product: Product) =>
+    product.id === flashSale?.product_id && isSoldOutDiscountActive(flashSale);
 
   const handleAddToCart = async (product: Product) => {
     if (isClaimableFlash(product)) {
@@ -295,10 +312,15 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
                           Out of Stock
                         </span>
                       )}
-                      {isClaimableFlash(product) && (
+                      {isClaimableFlash(product) ? (
                         <span className="absolute top-4 left-4 flex items-center gap-1 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
                           <Zap className="w-3.5 h-3.5" />
                           Flash Sale
+                        </span>
+                      ) : isSoldOutDiscount(product) && (
+                        <span className="absolute top-4 left-4 flex items-center gap-1 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                          <Zap className="w-3.5 h-3.5" />
+                          {flashSale!.after_sold_out_discount_percent}% OFF · <FlashCountdown target={flashSale!.after_sold_out_ends_at!} />
                         </span>
                       )}
                     </Link>
@@ -317,6 +339,10 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
                           {isClaimableFlash(product) ? (
                             <>
                               <del>₹{product.price.toFixed(2)}</del>&nbsp;<span className="text-red-600">₹{flashSale!.sale_price.toFixed(2)}</span>
+                            </>
+                          ) : isSoldOutDiscount(product) ? (
+                            <>
+                              <del>₹{product.price.toFixed(2)}</del>&nbsp;<span className="text-purple-600">₹{getSoldOutDiscountPrice(flashSale!, product.price).toFixed(2)}</span>
                             </>
                           ) : (
                             <>

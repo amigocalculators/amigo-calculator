@@ -1,40 +1,19 @@
 import Image from 'next/image';
 import Banner9 from './Banner9';
-// import PromoCarousel from './PromoCarousel';
+import PromoCarousel, { Slide } from './PromoCarousel';
 import { ShoppingBag, Truck, Shield, HeadphonesIcon as HeadphoneIcon } from 'lucide-react';
 import { Product } from '@/types';
 
-// Carousel disabled — wasn't rendering reliably. Reverted to the single static
-// hero image. To re-enable, restore the import above and swap the block below
-// for: <PromoCarousel slides={HERO_SLIDES} />
-// const HERO_SLIDES = [
-//   { desktopSrc: '/Image/Banner/Home1.jpg', mobileSrc: '/Image/Banner/CONCEPT-7.1.JPLL.jpg', alt: 'Amigo Calculator Banner' },
-//   { desktopSrc: '/Image/Banner/hero-slide-2.jpg', mobileSrc: '/Image/Banner/hero-slide-2-mobile.jpg', alt: 'Amigo Calculator Promo', fit: 'contain' },
-// ];
+const HERO_SLIDES: Slide[] = [
+  { desktopSrc: '/Image/Banner/Home1.jpg', mobileSrc: '/Image/Banner/CONCEPT-7.1.JPLL.jpg', alt: 'Amigo Calculator Banner' },
+  { desktopSrc: '/Image/Banner/VD-1.jpg', alt: 'Amigo Plus Rakhi Offer — Scientific Calculator for ₹1', fit: 'contain' },
+];
 
 const Banner2 = ({ products }: { products: Product[] }) => {
   return (
     <>
       <div className="w-full pb-4">
-        {/* Desktop Banner */}
-        <div className="hidden md:block w-full h-[500px] relative">
-          <Image
-            src="/Image/Banner/Home1.jpg"
-            alt="Amigo Calculator Desktop Banner"
-            fill
-            className="object-cover"
-            priority
-          />
-        </div>
-        {/* Mobile Banner */}
-        <Image
-          src="/Image/Banner/CONCEPT-7.1.JPLL.jpg"
-          alt="Amigo Calculator Mobile Banner"
-          width={800}
-          height={600}
-          className="block md:hidden w-full h-auto object-cover"
-          priority
-        />
+        <PromoCarousel slides={HERO_SLIDES} />
       </div>
 
       <Banner9 products={products} />
