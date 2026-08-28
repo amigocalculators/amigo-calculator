@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, RefreshCw, Search, Mail } from 'lucide-react';
+import { ChevronDown, RefreshCw, Search, Mail, Download } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
   pending:    'bg-orange-100 text-orange-700',
@@ -35,6 +35,19 @@ const optionLabel = (currentStatus: string, target: string) => {
   return target.charAt(0).toUpperCase() + target.slice(1);
 };
 
+// Plain-text mirror of the "Offer Claimed" badge logic above (JSX needs styling/emoji,
+// this needs a flat string for the CSV export) — kept as its own small function rather
+// than sharing code with the badge so neither has to compromise its output shape.
+const getOfferLabel = (order: Order): string => {
+  const giftLineItem = order.items.find((i) => i.id < 0);
+  if (giftLineItem) return `Gift: ${giftLineItem.quantity}x ${giftLineItem.name}`;
+  if (order.flash_sale_id) return 'Flash Sale';
+  if (Number(order.discount) > 0) return 'Buy 2 Get 1';
+  return '';
+};
+
+const escapeCsvCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+
 type Order = {
   id: string;
   razorpay_payment_id: string;
@@ -51,18 +64,43 @@ type Order = {
   flash_sale_id: number | null;
 };
 
+// Single source of truth for the export column picker AND the CSV itself, so the
+// checkbox list and what actually gets written to the file can never drift apart.
+const EXPORT_COLUMNS: { key: string; label: string; getValue: (order: Order) => string }[] = [
+  { key: 'customer', label: 'Customer', getValue: (o) => o.customer_name },
+  { key: 'email', label: 'Email', getValue: (o) => o.customer_email },
+  { key: 'phone', label: 'Phone', getValue: (o) => o.customer_phone },
+  { key: 'items', label: 'Items', getValue: (o) => o.items.filter((i) => i.id >= 0).map((i) => `${i.name} x${i.quantity}`).join('; ') },
+  { key: 'offer', label: 'Offer Claimed', getValue: (o) => getOfferLabel(o) },
+  { key: 'subtotal', label: 'Subtotal', getValue: (o) => Number(o.subtotal).toFixed(2) },
+  { key: 'discount', label: 'Discount', getValue: (o) => Number(o.discount).toFixed(2) },
+  { key: 'total', label: 'Total', getValue: (o) => Number(o.total).toFixed(2) },
+  { key: 'status', label: 'Status', getValue: (o) => displayStatus(o) },
+  { key: 'paymentId', label: 'Payment ID', getValue: (o) => o.razorpay_payment_id || 'Not paid' },
+  { key: 'date', label: 'Date', getValue: (o) => new Date(o.created_at).toLocaleString('en-IN') },
+  {
+    key: 'address',
+    label: 'Address',
+    getValue: (o) => `${o.address.line1}${o.address.line2 ? ', ' + o.address.line2 : ''}, ${o.address.city}, ${o.address.state} - ${o.address.pincode}`,
+  },
+];
+
 type Tab = 'confirmed' | 'pending';
 
 export default function OrdersTable({ initialOrders }: { initialOrders: Order[] }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [tab, setTab] = useState<Tab>('confirmed');
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<Record<string, string>>({});
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set(EXPORT_COLUMNS.map((c) => c.key)));
   const [resendMessage, setResendMessage] = useState<Record<string, string>>({});
 
   const updateStatus = async (orderId: string, newStatus: string) => {
@@ -135,12 +173,54 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
   const pendingOrders = orders.filter((o) => !o.razorpay_payment_id);
   const tabOrders = tab === 'confirmed' ? confirmedOrders : pendingOrders;
 
+  const matchesDateRange = (o: Order) => {
+    const created = new Date(o.created_at);
+    if (dateFrom && created < new Date(`${dateFrom}T00:00:00`)) return false;
+    if (dateTo && created > new Date(`${dateTo}T23:59:59.999`)) return false;
+    return true;
+  };
+
   const filtered = tabOrders.filter(
     (o) =>
-      o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-      o.customer_email.toLowerCase().includes(search.toLowerCase()) ||
-      o.razorpay_payment_id.toLowerCase().includes(search.toLowerCase())
+      matchesDateRange(o) &&
+      (o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+        o.customer_email.toLowerCase().includes(search.toLowerCase()) ||
+        o.razorpay_payment_id.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const hasActiveFilters = !!search || !!dateFrom || !!dateTo;
+
+  // Exports exactly what's currently on screen — respects the active tab and search
+  // box, so "filter then download" is just: search, then pick columns, then click.
+  const downloadCsv = () => {
+    const columns = EXPORT_COLUMNS.filter((c) => selectedColumns.has(c.key));
+    if (columns.length === 0) return;
+
+    const headers = columns.map((c) => c.label);
+    const rows = filtered.map((order) => columns.map((c) => c.getValue(order)));
+
+    const csv = [headers, ...rows].map((row) => row.map((cell) => escapeCsvCell(String(cell))).join(',')).join('\r\n');
+    // Leading BOM so Excel opens it as UTF-8 rather than guessing and mangling names/addresses.
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `orders-${tab}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+  };
+
+  const toggleColumn = (key: string) => {
+    setSelectedColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm">
@@ -183,9 +263,82 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
           />
         </div>
-        {tab === 'confirmed' && (
-          <div className="flex items-center gap-3">
-            {syncMessage && <span className="text-sm text-gray-600">{syncMessage}</span>}
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={dateFrom}
+            max={dateTo || undefined}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-600"
+          />
+          <span className="text-gray-400 text-sm">to</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-600"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              type="button"
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
+              className="text-xs text-gray-400 hover:text-gray-600 underline whitespace-nowrap"
+            >
+              Clear dates
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {tab === 'confirmed' && syncMessage && <span className="text-sm text-gray-600">{syncMessage}</span>}
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu((v) => !v)}
+              disabled={filtered.length === 0}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV ({filtered.length})
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+            </button>
+            {showExportMenu && (
+              <div className="absolute z-20 mt-2 right-0 w-60 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Columns to include</p>
+                  <div className="flex gap-2 shrink-0">
+                    <button type="button" onClick={() => setSelectedColumns(new Set(EXPORT_COLUMNS.map((c) => c.key)))} className="text-xs text-blue-600 hover:underline">
+                      All
+                    </button>
+                    <button type="button" onClick={() => setSelectedColumns(new Set())} className="text-xs text-blue-600 hover:underline">
+                      None
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1 max-h-56 overflow-y-auto">
+                  {EXPORT_COLUMNS.map((c) => (
+                    <label key={c.key} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer py-0.5">
+                      <input
+                        type="checkbox"
+                        checked={selectedColumns.has(c.key)}
+                        onChange={() => toggleColumn(c.key)}
+                        className="w-3.5 h-3.5"
+                      />
+                      {c.label}
+                    </label>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={downloadCsv}
+                  disabled={selectedColumns.size === 0}
+                  className="mt-3 w-full py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Download
+                </button>
+              </div>
+            )}
+          </div>
+          {tab === 'confirmed' && (
             <button
               onClick={syncFromRazorpay}
               disabled={syncing}
@@ -194,14 +347,14 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
               <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Syncing…' : 'Sync from Razorpay'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-center py-12">
-          {search
-            ? 'No orders match your search.'
+          {hasActiveFilters
+            ? 'No orders match your filters.'
             : tab === 'pending'
               ? 'No pending checkouts — every started checkout has been paid.'
               : 'No confirmed orders yet.'}
