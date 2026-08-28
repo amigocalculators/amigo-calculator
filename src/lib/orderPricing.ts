@@ -81,7 +81,12 @@ export function calculateOrderPricing(input: OrderPricingInput): OrderPricingRes
     ? rawCart.map((item) => item.id === flashSale.product_id ? { ...item, price: getSoldOutDiscountPrice(flashSale, item.price) } : item)
     : rawCart;
 
-  const flashLine = flashSale && flashEligible ? cart.find((i) => i.id === flashSale.product_id) : undefined;
+  // Deliberately read from rawCart, never the (possibly sold-out-discount-remapped)
+  // cart — the claimed unit's discount must always be measured against the true
+  // original price, never against an already-discounted one. In practice these two
+  // states shouldn't overlap (flashEligible implies the sale hasn't sold out, so the
+  // remap above never fires), but this keeps that a guarantee rather than an accident.
+  const flashLine = flashSale && flashEligible ? rawCart.find((i) => i.id === flashSale.product_id) : undefined;
 
   const cartForBuy2Get1 = flashLine
     ? cart.map((i) => (i.id === flashLine.id ? { ...i, quantity: i.quantity - 1 } : i)).filter((i) => i.quantity > 0)

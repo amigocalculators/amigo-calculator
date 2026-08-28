@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, getAuthorizedUser } from '@/lib/supabase/server';
 import { getActiveGiftPromotions, isBuy2Get1Enabled } from '@/lib/promotions';
 import { calculateOrderPricing } from '@/lib/orderPricing';
-import { isSoldOutDiscountActive } from '@/lib/flashSale';
+import { isFlashSaleLive, isSoldOutDiscountActive } from '@/lib/flashSale';
 import { CartItem, FlashSale } from '@/types';
 
 const razorpay = new Razorpay({
@@ -82,6 +82,13 @@ export async function POST(req: NextRequest) {
 
       if (existingClaim?.status === 'confirmed') {
         flashEligible = false; // already used their one claim
+      } else if (!isFlashSaleLive(flashSale)) {
+        // Sale has sold out / ended / been disabled since any earlier attempt — an old
+        // unpaid reservation no longer earns the flash price. Without this check, someone
+        // who merely *started* checkout while slots were open (never paid) could come
+        // back and keep completing ₹1 purchases indefinitely, well past the 10-order cap,
+        // via the "resume" branch below.
+        flashEligible = false;
       } else {
         // Already has a live (non-cancelled) flash-priced order from an earlier
         // checkout attempt — honor the slot they already reserved instead of
