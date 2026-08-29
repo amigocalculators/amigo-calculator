@@ -36,10 +36,10 @@ const Banner2 = ({ products }: { products: Product[] }) => {
         />
         */}
         <Image
-          src="/Image/Banner/VD-1.jpg"
+          src="/Image/Banner/amigo_plus_rakhi_final_highres.jpg"
           alt="Amigo Plus Rakhi Offer — Scientific Calculator for ₹1"
           width={1920}
-          height={916}
+          height={918}
           className="w-full h-auto"
           priority
         />

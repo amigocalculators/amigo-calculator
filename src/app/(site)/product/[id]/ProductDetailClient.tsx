@@ -215,7 +215,7 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                 ) : soldOutDiscountLive ? (
                   <div className="absolute top-4 left-4 bg-purple-600 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow">
                     <Zap className="w-3.5 h-3.5" />
-                    {flashSale!.after_sold_out_discount_percent}% OFF
+                    {flashSale!.after_sold_out_discount_percent}% OFF · <FlashCountdown target={flashSale!.after_sold_out_ends_at!} />
                   </div>
                 ) : product.inStock ? (
                   <div className="absolute top-4 left-4 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">In Stock</div>
@@ -307,7 +307,7 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                   <>
                     <div className="inline-flex items-center gap-1.5 mb-1 px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
                       <Zap className="w-3.5 h-3.5" />
-                      {flashSale!.after_sold_out_discount_percent}% off
+                      {flashSale!.after_sold_out_discount_percent}% off — ends in <FlashCountdown target={flashSale!.after_sold_out_ends_at!} />
                     </div>
                     <div className="text-2xl font-bold"><del>₹{product.price.toFixed(2)}</del></div>
                     <div className="text-3xl font-bold mb-6 text-purple-600">₹{soldOutDiscountPrice.toFixed(2)}</div>
