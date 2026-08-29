@@ -41,6 +41,7 @@ const Banner2 = ({ products }: { products: Product[] }) => {
           width={1920}
           height={918}
           className="w-full h-auto"
+          unoptimized
           priority
         />
       </div>
