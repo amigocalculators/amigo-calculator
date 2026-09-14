@@ -10,6 +10,7 @@ import { Product, FlashSale } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 import { getFlashSaleStatus, isFlashSaleLive, handleFlashClaim, isSoldOutDiscountActive, getSoldOutDiscountPrice } from '@/lib/flashSale';
+import { isProductSaleActive, getProductSalePrice } from '@/lib/productSale';
 import Banner10 from '@/components/Banner/Banner10';
 import FlashCountdown from '@/components/FlashCountdown';
 import {
@@ -20,6 +21,7 @@ import {
   ChevronDown,
   ChevronUp,
   Zap,
+  Tag,
 } from 'lucide-react';
 
 const ContactForm = dynamic(() => import('@/components/ContactForm'));
@@ -92,6 +94,26 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
   // the matching per-product-page treatment.
   const isSoldOutDiscount = (product: Product) =>
     product.id === flashSale?.product_id && isSoldOutDiscountActive(flashSale);
+
+  // Per-product scheduled sale — independent of the Flash Sale product, which keeps
+  // its own pricing/badges above and is excluded here to avoid the two overlapping.
+  const onProductSale = (product: Product) =>
+    product.id !== flashSale?.product_id && isProductSaleActive(product);
+
+  // Re-render at the next sale start/end across the whole catalog, then reschedule for
+  // the one after that — so a sale badge appears/disappears live without a page reload.
+  const [saleTick, setSaleTick] = useState(0);
+  useEffect(() => {
+    const now = Date.now();
+    const upcoming = products
+      .flatMap((p) => [p.sale_starts_at, p.sale_ends_at])
+      .filter((t): t is string => !!t)
+      .map((t) => new Date(t).getTime())
+      .filter((t) => t > now);
+    if (upcoming.length === 0) return;
+    const timer = setTimeout(() => setSaleTick((n) => n + 1), Math.min(...upcoming) - now);
+    return () => clearTimeout(timer);
+  }, [products, saleTick]);
 
   const handleAddToCart = async (product: Product) => {
     if (isClaimableFlash(product)) {
@@ -317,10 +339,15 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
                           <Zap className="w-3.5 h-3.5" />
                           Flash Sale
                         </span>
-                      ) : isSoldOutDiscount(product) && (
+                      ) : isSoldOutDiscount(product) ? (
                         <span className="absolute bottom-4 left-4 flex items-center gap-1 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
                           <Zap className="w-3.5 h-3.5" />
                           {flashSale!.after_sold_out_discount_percent}% OFF · <FlashCountdown target={flashSale!.after_sold_out_ends_at!} />
+                        </span>
+                      ) : onProductSale(product) && (
+                        <span className="absolute bottom-4 left-4 flex items-center gap-1 bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                          <Tag className="w-3.5 h-3.5" />
+                          {product.sale_percent}% OFF · <FlashCountdown target={product.sale_ends_at!} />
                         </span>
                       )}
                     </Link>
@@ -343,6 +370,10 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
                           ) : isSoldOutDiscount(product) ? (
                             <>
                               <del>₹{product.price.toFixed(2)}</del>&nbsp;<span className="text-purple-600">₹{getSoldOutDiscountPrice(flashSale!, product.price).toFixed(2)}</span>
+                            </>
+                          ) : onProductSale(product) ? (
+                            <>
+                              <del>₹{product.price.toFixed(2)}</del>&nbsp;<span className="text-orange-600">₹{getProductSalePrice(product).toFixed(2)}</span>
                             </>
                           ) : (
                             <>

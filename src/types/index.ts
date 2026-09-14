@@ -16,6 +16,14 @@ export interface Product {
   };
   warranty?: string;
   highlights?: string[];
+  // Per-product scheduled sale — independent of the single-campaign Flash Sale.
+  // All optional/nullable: a product with none of these set is just never on sale.
+  // sale_enabled is the explicit on/off switch — the %/dates can stay filled in while
+  // it's off, so re-enabling a sale later doesn't require re-entering them.
+  sale_enabled?: boolean;
+  sale_percent?: number | null;
+  sale_starts_at?: string | null;
+  sale_ends_at?: string | null;
 }
 
 export interface CartItem extends Product {

@@ -1,6 +1,7 @@
 import { CartItem, Promotion, FlashSale } from '@/types';
 import { buildFreeGiftItem, resolveOfferChoice, ResolvedOffer } from './promotions';
 import { isSoldOutDiscountActive, getSoldOutDiscountPrice } from './flashSale';
+import { isProductSaleActive, getProductSalePrice } from './productSale';
 
 interface Buy2Get1Result {
   isEligible: boolean;
@@ -77,9 +78,19 @@ export function calculateOrderPricing(input: OrderPricingInput): OrderPricingRes
   // Second flash-sale phase: once claim slots are gone, an admin-configured %-off can
   // apply to every unit of that product for everyone until a configured end time — a
   // plain price override, unlike the single-unit/one-per-account claim discount below.
-  const cart = flashSale && isSoldOutDiscountActive(flashSale)
+  const flashPricedCart = flashSale && isSoldOutDiscountActive(flashSale)
     ? rawCart.map((item) => item.id === flashSale.product_id ? { ...item, price: getSoldOutDiscountPrice(flashSale, item.price) } : item)
     : rawCart;
+
+  // Per-product scheduled sale (%-off for a date range, set independently per product
+  // in admin). Deliberately skips whatever product is the current flash-sale product —
+  // that one's pricing is fully governed by the flash-sale logic above/below, so the
+  // two discount sources never stack on the same item.
+  const cart = flashPricedCart.map((item) =>
+    item.id !== flashSale?.product_id && isProductSaleActive(item)
+      ? { ...item, price: getProductSalePrice(item) }
+      : item
+  );
 
   // Deliberately read from rawCart, never the (possibly sold-out-discount-remapped)
   // cart — the claimed unit's discount must always be measured against the true
