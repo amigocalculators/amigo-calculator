@@ -1,9 +1,17 @@
+import type { Metadata } from 'next';
 import { createAdminClient } from '@/lib/supabase/server';
 import EventPageClient from './EventPageClient';
 
 // Cache this page instead of hitting Supabase on every single visit — exhibitions
 // and gallery images change rarely, so a longer cache window is fine here.
 export const revalidate = 120;
+
+export const metadata: Metadata = {
+  title: 'Exhibitions & Events',
+  description:
+    'See Amigo Calculators at trade exhibitions across India and browse our gallery of past events and product showcases.',
+  alternates: { canonical: '/event' },
+};
 
 export default async function EventPage() {
   const supabase = createAdminClient();

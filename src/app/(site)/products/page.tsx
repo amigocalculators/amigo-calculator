@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { createAdminClient } from '@/lib/supabase/server';
 import ProductsClient from './ProductsClient';
 import { FlashSale } from '@/types';
@@ -6,6 +7,13 @@ import { FlashSale } from '@/types';
 // doesn't change second-to-second, so a short cache window removes the DB round-trip
 // from the common case while still picking up admin edits quickly.
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: 'Shop All Calculators',
+  description:
+    "Browse Amigo's full range of scientific, basic, and printing calculators. Quality, precision, and durability — made in India with fast delivery nationwide.",
+  alternates: { canonical: '/products' },
+};
 
 export default async function ProductsPage() {
   const supabase = createAdminClient();

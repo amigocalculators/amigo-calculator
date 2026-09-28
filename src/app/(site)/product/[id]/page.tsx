@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { createAdminClient, getAuthorizedUser } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import ProductDetailClient from './ProductDetailClient';
@@ -7,6 +8,38 @@ type Props = { params: Promise<{ id: string }> };
 
 // Cache this page instead of hitting Supabase twice on every single visit.
 export const revalidate = 60;
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://amigocalculator.com';
+
+// Duplicates the products fetch below by id, but Next's fetch deduping collapses
+// the two calls into one request per render pass — this is the standard pattern
+// for a page that needs the same data in both generateMetadata and the component.
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('products')
+    .select('name, description, image')
+    .eq('id', Number(id))
+    .single();
+
+  if (!data) return { title: 'Product Not Found' };
+
+  const description = data.description?.trim()
+    ? data.description.slice(0, 160)
+    : `Buy ${data.name} online from Amigo Calculators — quality, precision, and durability, made in India.`;
+
+  return {
+    title: data.name,
+    description,
+    alternates: { canonical: `/product/${id}` },
+    openGraph: {
+      title: data.name,
+      description,
+      images: data.image ? [{ url: data.image }] : undefined,
+    },
+  };
+}
 
 export default async function ProductDetailPage({ params }: Props) {
   const { id } = await params;
@@ -54,12 +87,44 @@ export default async function ProductDetailPage({ params }: Props) {
     }
   }
 
+  const productJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.description,
+    image: product.image ? [product.image] : undefined,
+    sku: String(product.id),
+    brand: { '@type': 'Brand', name: 'Amigo' },
+    offers: {
+      '@type': 'Offer',
+      url: `${siteUrl}/product/${id}`,
+      priceCurrency: 'INR',
+      price: product.price,
+      availability: product.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+    },
+    ...(product.rating
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: product.rating,
+            reviewCount: product.reviews && product.reviews > 0 ? product.reviews : 1,
+          },
+        }
+      : {}),
+  };
+
   return (
-    <ProductDetailClient
-      product={product}
-      relatedProducts={relatedProducts}
-      flashSale={flashSale}
-      flashAlreadyClaimed={alreadyClaimed}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+      <ProductDetailClient
+        product={product}
+        relatedProducts={relatedProducts}
+        flashSale={flashSale}
+        flashAlreadyClaimed={alreadyClaimed}
+      />
+    </>
   );
 }

@@ -1,6 +1,12 @@
-'use client';
+import type { Metadata } from 'next';
+import AboutStats from './AboutStats';
 
-import CountUp from 'react-countup';
+export const metadata: Metadata = {
+  title: 'About Us',
+  description:
+    'Amigo is a calculator manufacturing brand under Mitra Agro Enterprises Ltd, based in West Bengal, India. Trusted by 200,000+ customers since 2009, with a 100-acre manufacturing facility and international reach.',
+  alternates: { canonical: '/about' },
+};
 
 export default function AboutPage() {
   return (
@@ -62,30 +68,7 @@ export default function AboutPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16 mt-16">
-        <div className="text-center p-6">
-          <div className="text-4xl font-bold text-green-600 mb-2">
-            <CountUp start={0} end={200000} duration={10} /> +
-          </div>
-          <div className="text-gray-600">Happy Customers</div>
-        </div>
-        <div className="text-center p-6">
-          <div className="text-4xl font-bold text-blue-600 mb-2">
-            <CountUp start={0} end={100} duration={10} />+
-          </div>
-          <div className="text-gray-600">Distributor</div>
-        </div>
-        <div className="text-center p-6">
-          <div className="text-4xl font-bold text-blue-600 mb-2">
-            <CountUp start={0} end={10000} duration={10} />+
-          </div>
-          <div className="text-gray-600">Retailers</div>
-        </div>
-        <div className="text-center p-6">
-          <div className="text-4xl font-bold text-blue-600 mb-2">24/7</div>
-          <div className="text-gray-600">Customer Support</div>
-        </div>
-      </div>
+      <AboutStats />
 
       <div className="mb-4">
         <img

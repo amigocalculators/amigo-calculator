@@ -58,6 +58,11 @@ export default async function Home() {
 
   return (
     <div className="pt-16 bg-[#f0efef]">
+      {/* Visually hidden — the page has no visible heading, but search engines and
+          screen readers still need one to understand what the page is about. */}
+      <h1 className="sr-only">
+        Amigo Calculators — Buy Scientific, Basic &amp; Printing Calculators Online in India
+      </h1>
       <div className="max-w-[95rem] mx-auto">
         {slides.length > 0 && buy2Get1Enabled ? (
           <div className="flex flex-col md:flex-row">
