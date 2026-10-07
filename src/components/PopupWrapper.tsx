@@ -5,8 +5,6 @@ import { AdSlide } from '@/types';
 
 const PromotionCard = dynamic(() => import('./PromotionCard'), { ssr: false });
 
-export default function PopupWrapper({ slides = [], buy2Get1Enabled = true }: {
-  slides?: AdSlide[]; buy2Get1Enabled?: boolean;
-}) {
-  return <PromotionCard slides={slides} buy2Get1Enabled={buy2Get1Enabled} />;
+export default function PopupWrapper({ slides = [] }: { slides?: AdSlide[] }) {
+  return <PromotionCard slides={slides} />;
 }

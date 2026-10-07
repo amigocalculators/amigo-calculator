@@ -1,7 +1,8 @@
 import Razorpay from 'razorpay';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, getAuthorizedUser } from '@/lib/supabase/server';
-import { getActiveGiftPromotions, isBuy2Get1Enabled } from '@/lib/promotions';
+import { getActiveGiftPromotions } from '@/lib/promotions';
+import { getProductPromotions } from '@/lib/productPromotions';
 import { calculateOrderPricing } from '@/lib/orderPricing';
 import { isFlashSaleLive, isSoldOutDiscountActive } from '@/lib/flashSale';
 import { CartItem, FlashSale } from '@/types';
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     const { cart, selectedOfferType, customerDetails }: {
       cart: { id: number; quantity: number }[];
-      selectedOfferType: 'buy2get1' | number | null;
+      selectedOfferType: number | null;
       customerDetails: CustomerDetails;
     } = await req.json();
 
@@ -59,8 +60,8 @@ export async function POST(req: NextRequest) {
       return { ...product, quantity: line.quantity };
     });
 
-    const [buy2Get1Enabled, eligibleGiftPromotions, { data: flashSaleRow }] = await Promise.all([
-      isBuy2Get1Enabled(supabase),
+    const [productPromotions, eligibleGiftPromotions, { data: flashSaleRow }] = await Promise.all([
+      getProductPromotions(supabase, ids),
       getActiveGiftPromotions(supabase),
       supabase.from('flash_sales').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
 
     const pricing = calculateOrderPricing({
       cart: fullCart,
-      buy2Get1Enabled,
+      productPromotions,
       eligibleGiftPromotions,
       selectedOfferType: selectedOfferType ?? null,
       flashSale,

@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'react-hot-toast';
-import { Product, FlashSale } from '@/types';
+import { Product, FlashSale, ProductPromotion } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 import { isFlashSaleLive, handleFlashClaim, isSoldOutDiscountActive, getSoldOutDiscountPrice } from '@/lib/flashSale';
-import { isProductSaleActive, getProductSalePrice } from '@/lib/productSale';
+import { getActiveProductPromotion, getProductPromotionPrice, getProductPromotionLabel } from '@/lib/productPromotions';
 import FlashCountdown from '@/components/FlashCountdown';
 import {
   ShoppingCart,
@@ -31,9 +31,10 @@ interface Props {
   relatedProducts: Product[];
   flashSale: FlashSale | null;
   flashAlreadyClaimed: boolean;
+  productPromotions: ProductPromotion[];
 }
 
-export default function ProductDetailClient({ product, relatedProducts, flashSale, flashAlreadyClaimed }: Props) {
+export default function ProductDetailClient({ product, relatedProducts, flashSale, flashAlreadyClaimed, productPromotions }: Props) {
   const router = useRouter();
   const { addToCart, cart } = useCartStore();
   const [selectedImage, setSelectedImage] = useState(0);
@@ -67,18 +68,21 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
   }, [soldOutDiscountLive, flashSale]);
   const soldOutDiscountPrice = soldOutDiscountLive && flashSale ? getSoldOutDiscountPrice(flashSale, product.price) : null;
 
-  // Per-product scheduled sale — independent of the Flash Sale, excluded here for
-  // whichever product currently *is* the flash-sale product to avoid the two overlapping.
-  const [saleLive, setSaleLive] = useState(() => !isFlashProduct && isProductSaleActive(product));
+  // Per-product promotion — independent of the Flash Sale, excluded here for whichever
+  // product currently *is* the flash-sale product to avoid the two overlapping.
+  const [promoTick, setPromoTick] = useState(0);
+  const activePromotion = !isFlashProduct ? getActiveProductPromotion(productPromotions, product.id) : null;
   useEffect(() => {
-    if (isFlashProduct || !product.sale_starts_at || !product.sale_ends_at) return;
+    if (isFlashProduct || productPromotions.length === 0) return;
     const now = Date.now();
-    const transitions = [new Date(product.sale_starts_at).getTime(), new Date(product.sale_ends_at).getTime()].filter((t) => t > now);
+    const transitions = productPromotions
+      .flatMap((pp) => [new Date(pp.starts_at).getTime(), new Date(pp.ends_at).getTime()])
+      .filter((t) => t > now);
     if (transitions.length === 0) return;
-    const timer = setTimeout(() => setSaleLive(isProductSaleActive(product)), Math.min(...transitions) - now);
+    const timer = setTimeout(() => setPromoTick((n) => n + 1), Math.min(...transitions) - now);
     return () => clearTimeout(timer);
-  }, [isFlashProduct, product, saleLive]);
-  const productSalePrice = saleLive ? getProductSalePrice(product) : null;
+  }, [isFlashProduct, productPromotions, promoTick]);
+  const promotionPrice = activePromotion?.discount_percent ? getProductPromotionPrice(product.price, activePromotion) : null;
 
   // The Coming-Soon -> Live transition is time-based, not event-based — schedule it to
   // flip at the exact moment rather than polling, so it's immune to this page's ISR cache.
@@ -232,10 +236,10 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                     <Zap className="w-3.5 h-3.5" />
                     {flashSale!.after_sold_out_discount_percent}% OFF · <FlashCountdown target={flashSale!.after_sold_out_ends_at!} />
                   </div>
-                ) : saleLive ? (
+                ) : activePromotion ? (
                   <div className="absolute top-4 left-4 bg-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow">
                     <Tag className="w-3.5 h-3.5" />
-                    {product.sale_percent}% OFF · <FlashCountdown target={product.sale_ends_at!} />
+                    {getProductPromotionLabel(activePromotion)} · <FlashCountdown target={activePromotion.ends_at} />
                   </div>
                 ) : product.inStock ? (
                   <div className="absolute top-4 left-4 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">In Stock</div>
@@ -332,14 +336,22 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                     <div className="text-2xl font-bold"><del>₹{product.price.toFixed(2)}</del></div>
                     <div className="text-3xl font-bold mb-6 text-purple-600">₹{soldOutDiscountPrice.toFixed(2)}</div>
                   </>
-                ) : productSalePrice !== null ? (
+                ) : promotionPrice !== null ? (
                   <>
                     <div className="inline-flex items-center gap-1.5 mb-1 px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
                       <Tag className="w-3.5 h-3.5" />
-                      {product.sale_percent}% off — ends in <FlashCountdown target={product.sale_ends_at!} />
+                      {getProductPromotionLabel(activePromotion!)} — ends in <FlashCountdown target={activePromotion!.ends_at} />
                     </div>
                     <div className="text-2xl font-bold"><del>₹{product.price.toFixed(2)}</del></div>
-                    <div className="text-3xl font-bold mb-6 text-orange-600">₹{productSalePrice.toFixed(2)}</div>
+                    <div className="text-3xl font-bold mb-6 text-orange-600">₹{promotionPrice.toFixed(2)}</div>
+                  </>
+                ) : activePromotion ? (
+                  <>
+                    <div className="inline-flex items-center gap-1.5 mb-1 px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
+                      <Tag className="w-3.5 h-3.5" />
+                      {getProductPromotionLabel(activePromotion)} — ends in <FlashCountdown target={activePromotion.ends_at} />
+                    </div>
+                    <div className="text-3xl font-bold mb-6 text-blue-600">₹{product.price.toFixed(2)}</div>
                   </>
                 ) : (
                   <>

@@ -14,12 +14,6 @@ export async function getActiveGiftPromotions(supabase: SupabaseClient = createC
   return data ?? [];
 }
 
-// Fails open (true) on error — a transient fetch failure shouldn't silently kill a live offer.
-export async function isBuy2Get1Enabled(supabase: SupabaseClient = createClient()): Promise<boolean> {
-  const { data } = await supabase.from('site_settings').select('buy2get1_enabled').eq('id', 1).single();
-  return data?.buy2get1_enabled ?? true;
-}
-
 // Synthetic free-gift line items use a negative id (real products use SERIAL ids from 1) so
 // they're never confused with a real cart item and can't collide with one.
 export function buildFreeGiftItem(promotion: Promotion, cart: CartItem[]): CartItem {
@@ -40,22 +34,16 @@ export function isFreeGiftItem(item: CartItem): boolean {
   return item.id < 0;
 }
 
-// 'buy2get1' or a specific gift Promotion's id, or 'none' if nothing is eligible.
-export type ResolvedOffer = 'buy2get1' | number | 'none';
+// A specific gift Promotion's id, or 'none' if nothing is eligible.
+export type ResolvedOffer = number | 'none';
 
-// Offers never stack — only one resolved choice ever applies. When only one offer is
-// eligible, it applies automatically. When several are, the shopper's explicit choice
-// wins — defaulting to the most recently created gift promo (over Buy 2 Get 1) if undecided.
+// When several gift promotions are eligible simultaneously, the shopper's explicit
+// choice wins; otherwise the most recently created one applies automatically.
 export function resolveOfferChoice(
-  buy2Get1Eligible: boolean,
   eligibleGiftPromotions: Promotion[],
-  selected: 'buy2get1' | number | null
+  selected: number | null
 ): ResolvedOffer {
-  const options: ('buy2get1' | number)[] = [
-    ...eligibleGiftPromotions.map((p) => p.id),
-    ...(buy2Get1Eligible ? (['buy2get1'] as const) : []),
-  ];
-  if (options.length === 0) return 'none';
-  if (selected !== null && options.includes(selected)) return selected;
-  return options[0];
+  if (eligibleGiftPromotions.length === 0) return 'none';
+  if (selected !== null && eligibleGiftPromotions.some((p) => p.id === selected)) return selected;
+  return eligibleGiftPromotions[0].id;
 }

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { createAdminClient, getAuthorizedUser } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import ProductDetailClient from './ProductDetailClient';
-import { FlashSale } from '@/types';
+import { FlashSale, ProductPromotion } from '@/types';
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -73,6 +73,15 @@ export default async function ProductDetailPage({ params }: Props) {
     .maybeSingle();
   const flashSale = (flashSaleRow as FlashSale | null) ?? null;
 
+  // Unfiltered, same philosophy as the flash_sales fetch above — the client resolves
+  // scheduled/live/ended against Date.now() itself, immune to this page's ISR window.
+  // Includes "All Products" rows (product_ids IS NULL) alongside ones naming this product.
+  const { data: productPromotionRows } = await supabase
+    .from('product_promotions')
+    .select('*')
+    .or(`product_ids.cs.{${Number(id)}},product_ids.is.null`);
+  const productPromotions = (productPromotionRows as ProductPromotion[] | null) ?? [];
+
   let alreadyClaimed = false;
   if (flashSale) {
     const user = await getAuthorizedUser();
@@ -124,6 +133,7 @@ export default async function ProductDetailPage({ params }: Props) {
         relatedProducts={relatedProducts}
         flashSale={flashSale}
         flashAlreadyClaimed={alreadyClaimed}
+        productPromotions={productPromotions}
       />
     </>
   );

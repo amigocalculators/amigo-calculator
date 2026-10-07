@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { X, Gift, Clock } from 'lucide-react';
+import { X, Clock } from 'lucide-react';
 import { AdSlide } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { handleAdSlideClick } from '@/lib/flashSale';
@@ -13,9 +13,7 @@ const DISMISSED_KEY = 'promo_card_dismissed';
 const ROTATE_MS = 5000;
 const FADE_MS = 300;
 
-export default function PromotionCard({ slides = [], buy2Get1Enabled = true }: {
-  slides?: AdSlide[]; buy2Get1Enabled?: boolean;
-}) {
+export default function PromotionCard({ slides = [] }: { slides?: AdSlide[] }) {
   const [visible, setVisible] = useState(false);
   const [closing, setClosing] = useState(false);
   const [index, setIndex] = useState(0);
@@ -24,11 +22,11 @@ export default function PromotionCard({ slides = [], buy2Get1Enabled = true }: {
   const { addToCart } = useCartStore();
 
   useEffect(() => {
-    if (slides.length === 0 && !buy2Get1Enabled) return; // nothing active to advertise
+    if (slides.length === 0) return; // nothing active to advertise
     if (sessionStorage.getItem(DISMISSED_KEY)) return;
     const timer = setTimeout(() => setVisible(true), 1500);
     return () => clearTimeout(timer);
-  }, [slides.length, buy2Get1Enabled]);
+  }, [slides.length]);
 
   // Cycle through multiple active slides while the card is up — same pattern as
   // the homepage banner rotator. A single slide (or none) just never advances.
@@ -55,14 +53,11 @@ export default function PromotionCard({ slides = [], buy2Get1Enabled = true }: {
     handleAdSlideClick(s, router, addToCart, (message) => toast.error(message));
   };
 
-  const claimGeneric = () => {
-    dismiss();
-    router.push('/products');
-  };
-
   if (!visible) return null;
 
-  const slide = slides[index % slides.length] ?? null;
+  // `visible` is only ever set once slides.length > 0 (see the effect above), so there's
+  // always a slide to show here.
+  const slide = slides[index % slides.length];
 
   return (
     <div
@@ -82,45 +77,27 @@ export default function PromotionCard({ slides = [], buy2Get1Enabled = true }: {
         </button>
 
         <div className={`transition-opacity duration-300 ${fading ? 'opacity-0' : 'opacity-100'}`}>
-          {slide ? (
-            <>
-              <button onClick={() => claimSlide(slide)} className="block w-full bg-white">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={slide.image_url} alt={slide.title} className="w-full h-36 object-contain bg-white" />
-              </button>
-              <div className="p-4 pt-3">
-                <p className="font-bold text-gray-900 leading-snug">{slide.title}</p>
-                {slide.caption && <p className="text-sm text-gray-600 mt-0.5">{slide.caption}</p>}
-                {slide.flashStartsAt ? (
-                  <div className="mt-3 w-full py-2.5 bg-gray-100 text-gray-800 font-semibold rounded-full flex items-center justify-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <FlashCountdown target={slide.flashStartsAt} />
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => claimSlide(slide)}
-                    className="mt-3 w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white font-semibold rounded-full shadow hover:shadow-md transition-all active:scale-95"
-                  >
-                    Grab the Offer
-                  </button>
-                )}
+          <button onClick={() => claimSlide(slide)} className="block w-full bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={slide.image_url} alt={slide.title} className="w-full h-36 object-contain bg-white" />
+          </button>
+          <div className="p-4 pt-3">
+            <p className="font-bold text-gray-900 leading-snug">{slide.title}</p>
+            {slide.caption && <p className="text-sm text-gray-600 mt-0.5">{slide.caption}</p>}
+            {slide.flashStartsAt ? (
+              <div className="mt-3 w-full py-2.5 bg-gray-100 text-gray-800 font-semibold rounded-full flex items-center justify-center gap-2">
+                <Clock className="h-4 w-4" />
+                <FlashCountdown target={slide.flashStartsAt} />
               </div>
-            </>
-          ) : (
-            <div className="p-4">
-              <div className="flex items-center gap-2 text-red-600">
-                <Gift className="w-5 h-5" />
-                <p className="font-bold">Buy 2, Get 1 FREE!</p>
-              </div>
-              <p className="text-sm text-gray-600 mt-1">Limited time offer on all items.</p>
+            ) : (
               <button
-                onClick={claimGeneric}
+                onClick={() => claimSlide(slide)}
                 className="mt-3 w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white font-semibold rounded-full shadow hover:shadow-md transition-all active:scale-95"
               >
                 Grab the Offer
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {slides.length > 1 && (

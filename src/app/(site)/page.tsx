@@ -1,6 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import Banner2 from '@/components/Banner/Banner2';
-import Banner10 from '@/components/Banner/Banner10';
 import PromotionStripRotator from '@/components/Banner/PromotionStripRotator';
 import PopupWrapper from '@/components/PopupWrapper';
 import { AdSlide, FlashSale } from '@/types';
@@ -11,15 +10,13 @@ export const revalidate = 30;
 
 export default async function Home() {
   const supabase = createAdminClient();
-  const [{ data }, { data: promoData }, { data: settings }, { data: flashSaleRow }] = await Promise.all([
+  const [{ data }, { data: promoData }, { data: flashSaleRow }] = await Promise.all([
     supabase.from('products').select('*').order('id', { ascending: true }),
     supabase.from('promotions').select('*').eq('active', true).order('created_at', { ascending: false }),
-    supabase.from('site_settings').select('buy2get1_enabled').eq('id', 1).single(),
     supabase.from('flash_sales').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
   const products = (data ?? []).map((p) => ({ ...p, inStock: p.in_stock }));
   const activePromotions = promoData ?? [];
-  const buy2Get1Enabled = settings?.buy2get1_enabled ?? true;
   const flashSale = (flashSaleRow as FlashSale | null) ?? null;
 
   const promotionSlides: AdSlide[] = activePromotions.map((p) => ({
@@ -64,22 +61,9 @@ export default async function Home() {
         Amigo Calculators — Buy Scientific, Basic &amp; Printing Calculators Online in India
       </h1>
       <div className="max-w-[95rem] mx-auto">
-        {slides.length > 0 && buy2Get1Enabled ? (
-          <div className="flex flex-col md:flex-row">
-            <div className="md:w-1/2">
-              <Banner10 />
-            </div>
-            <div className="md:w-1/2">
-              <PromotionStripRotator slides={slides} />
-            </div>
-          </div>
-        ) : slides.length > 0 ? (
-          <PromotionStripRotator slides={slides} />
-        ) : buy2Get1Enabled ? (
-          <Banner10 />
-        ) : null}
+        {slides.length > 0 && <PromotionStripRotator slides={slides} />}
         <Banner2 products={products} />
-        <PopupWrapper slides={slides} buy2Get1Enabled={buy2Get1Enabled} />
+        <PopupWrapper slides={slides} />
       </div>
     </div>
   );

@@ -3,8 +3,7 @@
 import { useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { uploadImage } from '@/lib/supabase/storage';
-import { isProductSaleActive } from '@/lib/productSale';
-import { Plus, Pencil, Trash2, X, Check, Upload, ImageIcon, Search, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check, Upload, ImageIcon, Search } from 'lucide-react';
 
 type Product = {
   id: number;
@@ -22,24 +21,13 @@ type Product = {
   specifications: Record<string, string>;
   warranty: string | null;
   highlights: string[];
-  sale_enabled: boolean;
-  sale_percent: number | null;
-  sale_starts_at: string | null;
-  sale_ends_at: string | null;
 };
 
 const emptyProduct: Omit<Product, 'id'> = {
   name: '', price: 0, prevprice: null, image: '', images: [], description: '',
   category: '', rating: '', reviews: 0, in_stock: true, features: [],
   specifications: {}, warranty: '', highlights: [],
-  sale_enabled: false, sale_percent: null, sale_starts_at: null, sale_ends_at: null,
 };
-
-function toDatetimeLocalValue(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 function ImageUploadField({ label, value, onChange, bucket }: {
   label: string; value: string; onChange: (url: string) => void; bucket: string;
@@ -171,8 +159,6 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
       category: product.category ?? '', rating: product.rating ?? '', reviews: product.reviews,
       in_stock: product.in_stock, features: product.features, specifications: product.specifications,
       warranty: product.warranty ?? '', highlights: product.highlights,
-      sale_enabled: product.sale_enabled, sale_percent: product.sale_percent,
-      sale_starts_at: product.sale_starts_at, sale_ends_at: product.sale_ends_at,
     });
     setFeaturesInput(product.features.join('\n'));
     setHighlightsInput(product.highlights.join('\n'));
@@ -192,10 +178,6 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
   });
 
   const handleSave = async () => {
-    if (form.sale_enabled && (!form.sale_percent || !form.sale_starts_at || !form.sale_ends_at)) {
-      alert('Fill in the discount %, start, and end date/time — or turn the sale toggle off.');
-      return;
-    }
     setSaving(true);
     const { features, highlights, specifications } = parseFormArrays();
     const payload = { ...form, features, highlights, specifications };
@@ -298,12 +280,6 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
                   <td className="px-4 py-3">
                     ₹{Number(p.price).toFixed(2)}
                     {p.prevprice && <p className="text-gray-400 text-xs line-through">₹{Number(p.prevprice).toFixed(2)}</p>}
-                    {p.sale_enabled && p.sale_percent && (
-                      <p className={`text-xs font-medium flex items-center gap-1 mt-0.5 ${isProductSaleActive(p) ? 'text-purple-600' : 'text-gray-400'}`}>
-                        <Tag className="w-3 h-3" />
-                        {p.sale_percent}% off {isProductSaleActive(p) ? '(live)' : '(scheduled)'}
-                      </p>
-                    )}
                   </td>
                   <td className="px-4 py-3 text-gray-600">{p.category ?? '—'}</td>
                   <td className="px-4 py-3">
@@ -362,48 +338,6 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
                   <input type="number" value={form.prevprice ?? ''} onChange={(e) => setForm((f) => ({ ...f, prevprice: e.target.value ? Number(e.target.value) : null }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
-              </div>
-
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-semibold text-gray-700">Scheduled Sale</p>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={form.sale_enabled}
-                    onClick={() => setForm((f) => ({ ...f, sale_enabled: !f.sale_enabled }))}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${form.sale_enabled ? 'bg-orange-500' : 'bg-gray-300'}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.sale_enabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mb-3">
-                  Turn on to run a %-off sale for this product over a set date/time window — the price
-                  above is shown crossed out and the discounted price charged instead, automatically.
-                </p>
-                {form.sale_enabled && (
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Discount (%)</label>
-                      <input type="number" min={1} max={99} value={form.sale_percent ?? ''}
-                        onChange={(e) => setForm((f) => ({ ...f, sale_percent: e.target.value ? Number(e.target.value) : null }))}
-                        placeholder="e.g. 50"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Starts at</label>
-                      <input type="datetime-local" value={form.sale_starts_at ? toDatetimeLocalValue(form.sale_starts_at) : ''}
-                        onChange={(e) => setForm((f) => ({ ...f, sale_starts_at: e.target.value ? new Date(e.target.value).toISOString() : null }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Ends at</label>
-                      <input type="datetime-local" value={form.sale_ends_at ? toDatetimeLocalValue(form.sale_ends_at) : ''}
-                        onChange={(e) => setForm((f) => ({ ...f, sale_ends_at: e.target.value ? new Date(e.target.value).toISOString() : null }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                    </div>
-                  </div>
-                )}
               </div>
 
               <ImageUploadField label="Main Image *" value={form.image}

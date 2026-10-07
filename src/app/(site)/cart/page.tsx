@@ -1,26 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Promotion, FlashSale } from '@/types';
+import { Promotion, FlashSale, ProductPromotion } from '@/types';
 import { useCartStore } from '@/store/cartStore';
-import { getActiveGiftPromotions, isBuy2Get1Enabled, isFreeGiftItem, buildFreeGiftItem } from '@/lib/promotions';
+import { getActiveGiftPromotions, isFreeGiftItem, buildFreeGiftItem } from '@/lib/promotions';
+import { getProductPromotions } from '@/lib/productPromotions';
 import { calculateOrderPricing } from '@/lib/orderPricing';
 import { getFlashSaleStatus, isFlashSaleLive } from '@/lib/flashSale';
 import { createClient } from '@/lib/supabase/client';
-import { Minus, Plus, Trash2, Tag, Gift, Percent, Zap } from 'lucide-react';
+import { Minus, Plus, Trash2, Gift, Percent, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, selectedOfferType, setSelectedOfferType } = useCartStore();
   const router = useRouter();
   const [giftPromotions, setGiftPromotions] = useState<Promotion[]>([]);
-  const [buy2Get1Enabled, setBuy2Get1Enabled] = useState(true);
+  const [productPromotions, setProductPromotions] = useState<ProductPromotion[]>([]);
   const [flashSale, setFlashSale] = useState<FlashSale | null>(null);
   const [flashAlreadyClaimed, setFlashAlreadyClaimed] = useState(false);
 
   useEffect(() => {
     getActiveGiftPromotions().then(setGiftPromotions);
-    isBuy2Get1Enabled().then(setBuy2Get1Enabled);
+    getProductPromotions().then(setProductPromotions);
     getFlashSaleStatus().then(({ sale, alreadyClaimed }) => {
       setFlashSale(sale);
       setFlashAlreadyClaimed(alreadyClaimed);
@@ -32,7 +33,7 @@ export default function CartPage() {
 
   const pricing = calculateOrderPricing({
     cart,
-    buy2Get1Enabled,
+    productPromotions,
     eligibleGiftPromotions: eligibleGifts,
     selectedOfferType,
     flashSale,
@@ -40,7 +41,7 @@ export default function CartPage() {
   });
 
   const giftPreviews = new Map(eligibleGifts.map((p) => [p.id, buildFreeGiftItem(p, cart)]));
-  const optionsCount = (pricing.buy2Get1Eligible ? 1 : 0) + eligibleGifts.length;
+  const optionsCount = eligibleGifts.length;
   const displayCart = pricing.giftItem ? [...cart, pricing.giftItem] : cart;
   const selectedGiftPromotion = typeof pricing.offerChoice === 'number'
     ? eligibleGifts.find((p) => p.id === pricing.offerChoice) ?? null
@@ -98,34 +99,11 @@ export default function CartPage() {
                   </button>
                 );
               })}
-              {pricing.buy2Get1Eligible && (
-                <button
-                  onClick={() => setSelectedOfferType('buy2get1')}
-                  className={`p-4 rounded-lg border-2 text-left transition-colors ${
-                    pricing.offerChoice === 'buy2get1' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <p className="font-bold text-purple-700">🎉 Buy 2 Get 1 FREE</p>
-                  <p className="text-sm text-gray-600">
-                    Save ₹{pricing.buy2Get1PromotionDiscount.toFixed(2)} — {pricing.buy2Get1GroupsOf3} item{pricing.buy2Get1GroupsOf3 > 1 ? 's' : ''} free
-                  </p>
-                </button>
-              )}
             </div>
           </div>
         )}
 
-        {pricing.buy2Get1Applied ? (
-          <div className="mb-8 p-6 bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl text-white text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Tag className="w-6 h-6" />
-              <span className="text-xl font-bold">🎉 Buy 2 Get 1 FREE Active!</span>
-            </div>
-            <p className="text-lg opacity-90">
-              You&apos;re saving ₹{pricing.buy2Get1PromotionDiscount.toFixed(2)} with {pricing.buy2Get1GroupsOf3} free item{pricing.buy2Get1GroupsOf3 > 1 ? 's' : ''}!
-            </p>
-          </div>
-        ) : pricing.giftItem && selectedGiftPromotion ? (
+        {pricing.giftItem && selectedGiftPromotion ? (
           <div className="mb-8 p-6 bg-gradient-to-r from-orange-500 to-green-600 rounded-xl text-white text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Gift className="w-6 h-6" />
@@ -249,10 +227,10 @@ export default function CartPage() {
                     <span>-₹{pricing.flashDiscount.toFixed(2)}</span>
                   </div>
                 )}
-                {pricing.buy2Get1Applied && (
+                {pricing.productPromotionDiscount > 0 && (
                   <div className="flex justify-between text-green-600 font-semibold">
-                    <span className="flex items-center gap-1"><Percent className="w-4 h-4" />Buy 2 Get 1 FREE</span>
-                    <span>-₹{pricing.buy2Get1PromotionDiscount.toFixed(2)}</span>
+                    <span className="flex items-center gap-1"><Percent className="w-4 h-4" />Special Offer</span>
+                    <span>-₹{pricing.productPromotionDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 {pricing.giftItem && (

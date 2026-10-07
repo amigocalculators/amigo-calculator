@@ -6,12 +6,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { toast } from 'react-hot-toast';
-import { Product, FlashSale } from '@/types';
+import { Product, FlashSale, ProductPromotion } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 import { getFlashSaleStatus, isFlashSaleLive, handleFlashClaim, isSoldOutDiscountActive, getSoldOutDiscountPrice } from '@/lib/flashSale';
-import { isProductSaleActive, getProductSalePrice } from '@/lib/productSale';
-import Banner10 from '@/components/Banner/Banner10';
+import { getActiveProductPromotion, getProductPromotionPrice, getProductPromotionLabel } from '@/lib/productPromotions';
 import FlashCountdown from '@/components/FlashCountdown';
 import {
   Search,
@@ -35,8 +34,8 @@ const priceRanges = [
   { value: '500-100000', label: 'Above ₹500' },
 ];
 
-export default function ProductsClient({ products, buy2Get1Enabled, initialFlashSale = null }: {
-  products: Product[]; buy2Get1Enabled: boolean; initialFlashSale?: FlashSale | null;
+export default function ProductsClient({ products, productPromotions, initialFlashSale = null }: {
+  products: Product[]; productPromotions: ProductPromotion[]; initialFlashSale?: FlashSale | null;
 }) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,25 +94,24 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
   const isSoldOutDiscount = (product: Product) =>
     product.id === flashSale?.product_id && isSoldOutDiscountActive(flashSale);
 
-  // Per-product scheduled sale — independent of the Flash Sale product, which keeps
-  // its own pricing/badges above and is excluded here to avoid the two overlapping.
-  const onProductSale = (product: Product) =>
-    product.id !== flashSale?.product_id && isProductSaleActive(product);
+  // Per-product promotion — independent of the Flash Sale product, which keeps its own
+  // pricing/badges above and is excluded here to avoid the two overlapping.
+  const activePromotionFor = (product: Product): ProductPromotion | null =>
+    product.id !== flashSale?.product_id ? getActiveProductPromotion(productPromotions, product.id) : null;
 
-  // Re-render at the next sale start/end across the whole catalog, then reschedule for
-  // the one after that — so a sale badge appears/disappears live without a page reload.
+  // Re-render at the next promotion start/end across the whole catalog, then reschedule
+  // for the one after that — so a badge appears/disappears live without a page reload.
   const [saleTick, setSaleTick] = useState(0);
   useEffect(() => {
     const now = Date.now();
-    const upcoming = products
-      .flatMap((p) => [p.sale_starts_at, p.sale_ends_at])
-      .filter((t): t is string => !!t)
+    const upcoming = productPromotions
+      .flatMap((pp) => [pp.starts_at, pp.ends_at])
       .map((t) => new Date(t).getTime())
       .filter((t) => t > now);
     if (upcoming.length === 0) return;
     const timer = setTimeout(() => setSaleTick((n) => n + 1), Math.min(...upcoming) - now);
     return () => clearTimeout(timer);
-  }, [products, saleTick]);
+  }, [productPromotions, saleTick]);
 
   const handleAddToCart = async (product: Product) => {
     if (isClaimableFlash(product)) {
@@ -268,8 +266,6 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
   return (
     <div className="min-h-screen bg-[#f0efef] pt-16 pb-8">
       <div className="max-w-[100rem] mx-auto px-4 sm:px-6 lg:px-8">
-        {buy2Get1Enabled && <Banner10 />}
-
         {/* Top Bar */}
         <div className="py-4">
           <div className="flex flex-col md:flex-row gap-6 items-start justify-between">
@@ -305,7 +301,9 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
           <div className="flex-1">
             {filteredProducts.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {filteredProducts.map((product) => (
+                {filteredProducts.map((product) => {
+                  const promo = activePromotionFor(product);
+                  return (
                   <div
                     key={product.id}
                     className="bg-[#e0dede] rounded-2xl shadow-lg overflow-hidden group hover:shadow-3xl transition-all duration-300 transform hover:-translate-y-1"
@@ -344,10 +342,10 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
                           <Zap className="w-3.5 h-3.5" />
                           {flashSale!.after_sold_out_discount_percent}% OFF · <FlashCountdown target={flashSale!.after_sold_out_ends_at!} />
                         </span>
-                      ) : onProductSale(product) && (
+                      ) : promo && (
                         <span className="absolute bottom-4 left-4 flex items-center gap-1 bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
                           <Tag className="w-3.5 h-3.5" />
-                          {product.sale_percent}% OFF · <FlashCountdown target={product.sale_ends_at!} />
+                          {getProductPromotionLabel(promo)} · <FlashCountdown target={promo.ends_at} />
                         </span>
                       )}
                     </Link>
@@ -371,9 +369,9 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
                             <>
                               <del>₹{product.price.toFixed(2)}</del>&nbsp;<span className="text-purple-600">₹{getSoldOutDiscountPrice(flashSale!, product.price).toFixed(2)}</span>
                             </>
-                          ) : onProductSale(product) ? (
+                          ) : promo?.discount_percent ? (
                             <>
-                              <del>₹{product.price.toFixed(2)}</del>&nbsp;<span className="text-orange-600">₹{getProductSalePrice(product).toFixed(2)}</span>
+                              <del>₹{product.price.toFixed(2)}</del>&nbsp;<span className="text-orange-600">₹{getProductPromotionPrice(product.price, promo).toFixed(2)}</span>
                             </>
                           ) : (
                             <>
@@ -400,7 +398,8 @@ export default function ProductsClient({ products, buy2Get1Enabled, initialFlash
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-16 bg-white rounded-2xl shadow-lg">

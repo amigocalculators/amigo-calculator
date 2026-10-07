@@ -16,14 +16,6 @@ export interface Product {
   };
   warranty?: string;
   highlights?: string[];
-  // Per-product scheduled sale — independent of the single-campaign Flash Sale.
-  // All optional/nullable: a product with none of these set is just never on sale.
-  // sale_enabled is the explicit on/off switch — the %/dates can stay filled in while
-  // it's off, so re-enabling a sale later doesn't require re-entering them.
-  sale_enabled?: boolean;
-  sale_percent?: number | null;
-  sale_starts_at?: string | null;
-  sale_ends_at?: string | null;
 }
 
 export interface CartItem extends Product {
@@ -81,8 +73,21 @@ export interface Promotion {
   created_at: string;
 }
 
-export interface SiteSettings {
-  buy2get1_enabled: boolean;
+// A per-product offer configured from the admin Promotions tab: a discount percentage,
+// a buy-X-get-Y rule, or both, active over [starts_at, ends_at). A product can have many
+// of these over time (e.g. different campaigns on different date ranges). product_ids is
+// null for an "All Products" promotion that applies to the whole catalog at once, or a
+// list of one or more specific product ids it's scoped to.
+export interface ProductPromotion {
+  id: number;
+  product_ids: number[] | null;
+  discount_percent: number | null;
+  buy_qty: number | null;
+  get_qty: number | null;
+  starts_at: string;
+  ends_at: string;
+  enabled: boolean;
+  created_at: string;
 }
 
 export interface FlashSale {

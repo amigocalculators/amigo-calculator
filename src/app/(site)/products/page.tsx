@@ -22,15 +22,14 @@ export default async function ProductsPage() {
   // instead of forcing it dynamic. Seeding the client with this up front means
   // the sale product's badge/sort position is correct on first paint instead of
   // popping in ~1s later once a client-side fetch resolves.
-  const [{ data }, { data: settings }, { data: flashSaleRow }] = await Promise.all([
+  const [{ data }, { data: productPromotions }, { data: flashSaleRow }] = await Promise.all([
     supabase.from('products').select('*').order('id', { ascending: true }),
-    supabase.from('site_settings').select('buy2get1_enabled').eq('id', 1).single(),
+    supabase.from('product_promotions').select('*'),
     supabase.from('flash_sales').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const products = (data ?? []).map((p) => ({ ...p, inStock: p.in_stock }));
-  const buy2Get1Enabled = settings?.buy2get1_enabled ?? true;
   const flashSale = (flashSaleRow as FlashSale | null) ?? null;
 
-  return <ProductsClient products={products} buy2Get1Enabled={buy2Get1Enabled} initialFlashSale={flashSale} />;
+  return <ProductsClient products={products} productPromotions={productPromotions ?? []} initialFlashSale={flashSale} />;
 }

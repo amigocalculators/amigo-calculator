@@ -4,8 +4,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Product, CartItem } from '@/types';
 
-// 'buy2get1' or a specific gift Promotion's id
-export type OfferChoice = 'buy2get1' | number;
+// A specific gift Promotion's id
+export type OfferChoice = number;
 
 interface CartState {
   cart: CartItem[];
