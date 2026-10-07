@@ -77,12 +77,33 @@ export function calculateOrderPricing(input: OrderPricingInput): OrderPricingRes
     ? cart.map((i) => (i.id === flashLine.id ? { ...i, quantity: i.quantity - 1 } : i)).filter((i) => i.quantity > 0)
     : cart;
 
-  const freeUnitsByProductId = new Map<number, number>();
+  // Buy-X-get-Y either pools quantity across every product the promotion covers, or
+  // counts only repeat purchases of one product — the admin's choice per promotion
+  // (ProductPromotion.same_product_only). E.g. a "Buy 2 Get 1" promotion naming products
+  // A, B and C either treats 1×A + 1×B + 1×C as 3 qualifying units (pooled), or requires
+  // 3 units of the SAME product (same_product_only). Units are grouped by which specific
+  // promotion governs them (via activeByProductId, which already resolved the one active
+  // promotion per product) — and additionally by product when same_product_only is set —
+  // then the cheapest units in each group are marked free, mirroring the old store-wide
+  // Buy 2 Get 1's "cheapest unit in every group is free" rule.
+  const promoGroups = new Map<string, { promo: ProductPromotion; units: { productId: number; price: number }[] }>();
   cartForFreeUnits.forEach((item) => {
     const promo = activeByProductId.get(item.id);
-    if (!promo) return;
-    const free = getProductPromotionFreeUnits(item.quantity, promo);
-    if (free > 0) freeUnitsByProductId.set(item.id, free);
+    if (!promo || !promo.buy_qty || !promo.get_qty) return;
+    const groupKey = promo.same_product_only ? `${promo.id}-${item.id}` : String(promo.id);
+    const group = promoGroups.get(groupKey) ?? { promo, units: [] };
+    for (let i = 0; i < item.quantity; i++) group.units.push({ productId: item.id, price: item.price });
+    promoGroups.set(groupKey, group);
+  });
+
+  const freeUnitsByProductId = new Map<number, number>();
+  promoGroups.forEach(({ promo, units }) => {
+    const freeCount = getProductPromotionFreeUnits(units.length, promo);
+    if (freeCount === 0) return;
+    const cheapestFirst = [...units].sort((a, b) => a.price - b.price);
+    cheapestFirst.slice(0, freeCount).forEach((u) => {
+      freeUnitsByProductId.set(u.productId, (freeUnitsByProductId.get(u.productId) ?? 0) + 1);
+    });
   });
 
   const offerChoice = resolveOfferChoice(eligibleGiftPromotions, selectedOfferType);

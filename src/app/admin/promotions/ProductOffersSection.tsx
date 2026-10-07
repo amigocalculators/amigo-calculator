@@ -43,6 +43,7 @@ export default function ProductOffersSection({ products, initialProductPromotion
   const [discountPercent, setDiscountPercent] = useState<number | ''>('');
   const [buyQty, setBuyQty] = useState<number | ''>('');
   const [getQty, setGetQty] = useState<number | ''>('');
+  const [sameProductOnly, setSameProductOnly] = useState(true);
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [enabled, setEnabled] = useState(true);
@@ -60,6 +61,7 @@ export default function ProductOffersSection({ products, initialProductPromotion
     setDiscountPercent('');
     setBuyQty('');
     setGetQty('');
+    setSameProductOnly(true);
     setStartsAt('');
     setEndsAt('');
     setEnabled(true);
@@ -75,6 +77,7 @@ export default function ProductOffersSection({ products, initialProductPromotion
     setDiscountPercent(promo.discount_percent ?? '');
     setBuyQty(promo.buy_qty ?? '');
     setGetQty(promo.get_qty ?? '');
+    setSameProductOnly(promo.same_product_only);
     setStartsAt(toDatetimeLocalValue(promo.starts_at));
     setEndsAt(toDatetimeLocalValue(promo.ends_at));
     setEnabled(promo.enabled);
@@ -113,6 +116,7 @@ export default function ProductOffersSection({ products, initialProductPromotion
       discount_percent: hasDiscount ? discountPercent : null,
       buy_qty: hasBuyGet ? buyQty : null,
       get_qty: hasBuyGet ? getQty : null,
+      same_product_only: hasBuyGet ? sameProductOnly : true,
       starts_at: new Date(startsAt).toISOString(),
       ends_at: new Date(endsAt).toISOString(),
       enabled,
@@ -196,6 +200,11 @@ export default function ProductOffersSection({ products, initialProductPromotion
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5 text-orange-500" />{getProductPromotionLabel(promo)}</span>
+                      {promo.buy_qty && promo.get_qty && (promo.product_ids === null || promo.product_ids.length > 1) && (
+                        <span className="block text-xs text-gray-400 mt-0.5">
+                          {promo.same_product_only ? 'same product only' : 'mix & match'}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">
                       {new Date(promo.starts_at).toLocaleString('en-IN')} → {new Date(promo.ends_at).toLocaleString('en-IN')}
@@ -353,6 +362,22 @@ export default function ProductOffersSection({ products, initialProductPromotion
                     />
                   </div>
                 </div>
+
+                {buyQty !== '' && getQty !== '' && (targetMode === 'all' || selectedProductIds.length > 1) && (
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">When this covers more than one product, count:</label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="radio" name="sameProductOnly" checked={sameProductOnly} onChange={() => setSameProductOnly(true)} />
+                        Repeat purchases of the same product only (buy 2 of one product to get 1 of it free)
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="radio" name="sameProductOnly" checked={!sameProductOnly} onChange={() => setSameProductOnly(false)} />
+                        Any combination of the covered products (e.g. 1 of each of 2 products also counts as 2)
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="border-t pt-4 grid grid-cols-2 gap-4">

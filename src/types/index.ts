@@ -84,6 +84,10 @@ export interface ProductPromotion {
   discount_percent: number | null;
   buy_qty: number | null;
   get_qty: number | null;
+  // Only meaningful when buy_qty/get_qty are set and the promotion covers more than one
+  // product: true counts only repeat purchases of the same product toward the buy/get
+  // total; false pools quantity across every product the promotion covers.
+  same_product_only: boolean;
   starts_at: string;
   ends_at: string;
   enabled: boolean;

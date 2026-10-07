@@ -38,7 +38,8 @@ export function getProductPromotionPrice(price: number, promotion: Pick<ProductP
 
 // buy_qty paid + get_qty free per group, e.g. buy=1,get=1 -> every 2 units 1 is free
 // (classic BOGO); buy=2,get=1 -> every 3 units 1 is free (the shape of the old sitewide
-// Buy 2 Get 1, now scoped to a single product instead of the whole cart).
+// Buy 2 Get 1). `quantity` is the pooled unit count across every product this promotion
+// covers (see orderPricing.ts), not necessarily one product's own quantity.
 export function getProductPromotionFreeUnits(quantity: number, promotion: Pick<ProductPromotion, 'buy_qty' | 'get_qty'>): number {
   if (!promotion.buy_qty || !promotion.get_qty) return 0;
   const groupSize = promotion.buy_qty + promotion.get_qty;
