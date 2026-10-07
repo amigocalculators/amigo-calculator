@@ -61,7 +61,7 @@ const Footer = () => {
                   rel="noopener noreferrer"
                   className="hover:text-white transition-colors duration-200"
                 >
-                  32 P.K Tagor Street, Kolkata-700006, West Bengal, India.
+                  32 P. K. Tagore Street, PRB Tower, Ground Floor, Kolkata - 700006, West Bengal, India
                 </a>
               </li>
             </ul>
