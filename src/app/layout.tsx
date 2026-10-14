@@ -1,5 +1,12 @@
 import type { Metadata } from 'next';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-plus-jakarta',
+  display: 'swap',
+});
 
 // Same fallback pattern used elsewhere in the codebase (see orderConfirmation.ts,
 // resend-email route) — falls back to the production domain when the env var isn't set.
@@ -85,8 +92,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="min-h-screen flex flex-col">
+    <html lang="en" className={plusJakartaSans.variable}>
+      <body className="min-h-screen flex flex-col bg-paper text-ink">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}

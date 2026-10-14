@@ -28,8 +28,16 @@ export default async function AccountLoginPage({
     // Verified session but no profile yet (e.g. they closed the tab mid-signup) —
     // resume straight at the "complete your profile" step instead of bouncing
     // between this page and /account/orders forever.
-    return <AccountLoginClient resumeProfile={{ email: user.email ?? null, phone: user.phone ?? null }} next={safeNext} />;
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4 py-16 bg-paper">
+        <AccountLoginClient resumeProfile={{ email: user.email ?? null, phone: user.phone ?? null }} next={safeNext} />
+      </div>
+    );
   }
 
-  return <AccountLoginClient next={safeNext} />;
+  return (
+    <div className="min-h-[70vh] flex items-center justify-center px-4 py-16 bg-paper">
+      <AccountLoginClient next={safeNext} />
+    </div>
+  );
 }

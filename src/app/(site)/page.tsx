@@ -54,7 +54,7 @@ export default async function Home() {
   const slides: AdSlide[] = [...(flashSlide ? [flashSlide] : []), ...promotionSlides];
 
   return (
-    <div className="pt-16 bg-[#f0efef]">
+    <div className="pt-16 bg-paper">
       {/* Visually hidden — the page has no visible heading, but search engines and
           screen readers still need one to understand what the page is about. */}
       <h1 className="sr-only">

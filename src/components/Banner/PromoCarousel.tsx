@@ -133,14 +133,14 @@ const PromoCarousel = ({ slides }: { slides: Slide[] }) => {
           <button
             aria-label="Previous slide"
             onClick={() => step(-1)}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 rounded-full w-9 h-9 flex items-center justify-center shadow"
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-accent-500 text-ink rounded-full w-9 h-9 flex items-center justify-center shadow"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             aria-label="Next slide"
             onClick={() => step(1)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 rounded-full w-9 h-9 flex items-center justify-center shadow"
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-accent-500 text-ink rounded-full w-9 h-9 flex items-center justify-center shadow"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -151,7 +151,7 @@ const PromoCarousel = ({ slides }: { slides: Slide[] }) => {
                 key={slide.desktopSrc}
                 aria-label={`Go to slide ${i + 1}`}
                 onClick={() => goToDot(i)}
-                className={`h-2 rounded-full transition-all ${i === activeDot ? 'w-6 bg-white' : 'w-2 bg-white/50'}`}
+                className={`h-2 rounded-full transition-all ${i === activeDot ? 'w-6 bg-accent-500' : 'w-2 bg-white/60'}`}
               />
             ))}
           </div>

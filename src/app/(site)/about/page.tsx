@@ -10,14 +10,14 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 mt-16 bg-[#f0efef]">
-      <h1 className="text-3xl font-bold mb-8">About Us</h1>
+    <div className="max-w-7xl mx-auto px-6 py-8 mt-16 bg-paper">
+      <h1 className="text-3xl font-bold mb-8 text-ink">About Us</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         <div>
-          <p className="text-gray-700 mb-6">
+          <p className="text-ink-muted mb-6">
             Amigo is a brand operating under Mitra agro enterprises Ltd based in West Bengal, India.
           </p>
-          <p className="text-gray-700 mb-6">
+          <p className="text-ink-muted mb-6">
             Over the decade the company has built its significance inside the domestic and the
             international market. The company essentially involves and believes in house manufacturing,
             endeavoring to provide the best to its customers. We can be recognized as one of the largest
@@ -30,7 +30,7 @@ export default function AboutPage() {
             customer service while motivating creativity and teamwork in a constantly evolving
             environment. As core values, we wish to deliver satisfaction to our customer.
           </p>
-          <p className="text-gray-700">
+          <p className="text-ink-muted">
             We are a reliable manufacturer, distributor/wholesaler, exporter, trader and supplier of
             high-end as well as modern calculators in the market since 2009. A Make In India member and
             a brainchild of Mr. Joydeb Mitra, we produce bulk products within the stipulated period.
@@ -47,19 +47,19 @@ export default function AboutPage() {
         </div>
       </div>
 
-      <div className="bg-gray-100 py-16 rounded-2xl mt-4 p-8">
-        <h2 className="text-3xl font-bold text-center mb-8">Our Values</h2>
+      <div className="bg-blush/40 py-16 rounded-2xl mt-4 p-8">
+        <h2 className="text-3xl font-bold text-center mb-8 text-ink">Our Values</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="text-center p-4">
-            <h3 className="text-xl font-semibold mb-2">OUR VISION</h3>
-            <p className="text-gray-600">
+            <h3 className="text-xl font-semibold mb-2 text-ink">OUR VISION</h3>
+            <p className="text-ink-muted">
               Being one of the biggest calculator manufacturers in India, our mission is to satisfy
               customer demands and expectations by offering the highest calibre goods at competitive prices.
             </p>
           </div>
           <div className="text-center p-4">
-            <h3 className="text-xl font-semibold mb-2">OUR MISSION</h3>
-            <p className="text-gray-600">
+            <h3 className="text-xl font-semibold mb-2 text-ink">OUR MISSION</h3>
+            <p className="text-ink-muted">
               QUALITY FIRST, COST SECOND. Our AIM is to have better creativity, team work and a
               constantly evolving atmosphere within the organisation. Our Core Value is to Satisfy the
               Customer needs.
@@ -95,8 +95,8 @@ export default function AboutPage() {
         />
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-8 mt-8">
-        <h2 className="text-3xl font-bold text-center mb-8">Why Choose Us?</h2>
+      <div className="bg-blush/30 rounded-lg p-8 mt-8">
+        <h2 className="text-3xl font-bold text-center mb-8 text-ink">Why Choose Us?</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
             { title: 'Quality Products', desc: 'Carefully curated selection of high-quality items' },
@@ -105,8 +105,8 @@ export default function AboutPage() {
             { title: '24/7 Support', desc: 'Always here to help with your questions' },
           ].map(({ title, desc }) => (
             <div key={title} className="text-center p-4">
-              <h3 className="text-xl font-semibold mb-2">{title}</h3>
-              <p className="text-gray-600">{desc}</p>
+              <h3 className="text-xl font-semibold mb-2 text-ink">{title}</h3>
+              <p className="text-ink-muted">{desc}</p>
             </div>
           ))}
         </div>

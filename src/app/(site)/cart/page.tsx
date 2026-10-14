@@ -49,12 +49,12 @@ export default function CartPage() {
 
   if (cart.length === 0) {
     return (
-      <div className="pt-20 pb-12">
+      <div className="pt-20 pb-12 bg-paper">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center py-16">
-            <h1 className="text-3xl font-bold mb-4">Your Cart is Empty</h1>
-            <p className="text-gray-600 mb-8">Looks like you haven&apos;t added anything to your cart yet.</p>
-            <button onClick={() => router.push('/products')} className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+            <h1 className="text-3xl font-bold mb-4 text-ink">Your Cart is Empty</h1>
+            <p className="text-ink-muted mb-8">Looks like you haven&apos;t added anything to your cart yet.</p>
+            <button onClick={() => router.push('/products')} className="bg-accent-500 text-ink font-semibold px-8 py-3 rounded-lg hover:bg-accent-600 transition-colors">
               Continue Shopping
             </button>
           </div>
@@ -64,12 +64,12 @@ export default function CartPage() {
   }
 
   return (
-    <div className="pt-20 pb-12 bg-gray-200">
+    <div className="pt-20 pb-12 bg-paper">
       <div className="max-w-7xl mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8 text-center">Shopping Cart</h1>
+        <h1 className="text-3xl font-bold mb-8 text-center text-ink">Shopping Cart</h1>
 
         {pricing.flashDiscount > 0 && (
-          <div className="mb-8 p-6 bg-gradient-to-r from-red-600 to-orange-500 rounded-xl text-white text-center">
+          <div className="mb-8 p-6 bg-badge rounded-xl text-white text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Zap className="w-6 h-6" />
               <span className="text-xl font-bold">⚡ Flash Sale Applied!</span>
@@ -79,8 +79,8 @@ export default function CartPage() {
         )}
 
         {optionsCount > 1 && (
-          <div className="mb-8 bg-white rounded-xl shadow-sm p-6">
-            <p className="font-semibold mb-3 text-center">You qualify for multiple offers — choose which one to apply:</p>
+          <div className="mb-8 bg-white rounded-xl border border-border-soft shadow-sm p-6">
+            <p className="font-semibold mb-3 text-center text-ink">You qualify for multiple offers — choose which one to apply:</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {eligibleGifts.map((p) => {
                 const preview = giftPreviews.get(p.id)!;
@@ -89,11 +89,11 @@ export default function CartPage() {
                     key={p.id}
                     onClick={() => setSelectedOfferType(p.id)}
                     className={`p-4 rounded-lg border-2 text-left transition-colors ${
-                      pricing.offerChoice === p.id ? 'border-green-600 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+                      pricing.offerChoice === p.id ? 'border-green-600 bg-green-50' : 'border-border-soft hover:border-accent-400'
                     }`}
                   >
                     <p className="font-bold text-green-700">🎁 {p.title}</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-ink-muted">
                       Free {preview && preview.quantity > 1 ? `${preview.quantity} × ` : ''}{p.free_gift_name}
                     </p>
                   </button>
@@ -104,7 +104,7 @@ export default function CartPage() {
         )}
 
         {pricing.giftItem && selectedGiftPromotion ? (
-          <div className="mb-8 p-6 bg-gradient-to-r from-orange-500 to-green-600 rounded-xl text-white text-center">
+          <div className="mb-8 p-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-white text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Gift className="w-6 h-6" />
               <span className="text-xl font-bold">🎉 {selectedGiftPromotion.title} Active!</span>
@@ -121,8 +121,9 @@ export default function CartPage() {
               if (isFreeGiftItem(item)) {
                 return (
                   <div key={item.id} className="relative">
-                    <div className="bg-white p-6 rounded-xl shadow-sm ring-2 ring-green-200 bg-gradient-to-r from-green-50 to-emerald-50 flex items-center gap-4">
+                    <div className="bg-white p-6 rounded-xl border border-border-soft shadow-sm ring-2 ring-green-200 bg-gradient-to-r from-green-50 to-emerald-50 flex items-center gap-4">
                       {item.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- matches existing cart image usage elsewhere in this file
                         <img src={item.image} alt={item.name} className="w-24 h-24 object-cover rounded-lg" />
                       ) : (
                         <div className="w-24 h-24 rounded-lg bg-green-100 flex items-center justify-center">
@@ -130,8 +131,8 @@ export default function CartPage() {
                         </div>
                       )}
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold">{item.name}</h3>
-                        <p className="text-sm text-gray-500">
+                        <h3 className="text-lg font-semibold text-ink">{item.name}</h3>
+                        <p className="text-sm text-ink-muted">
                           {item.quantity > 1 ? `${item.quantity} × ` : ''}Free gift with your order
                           {selectedGiftPromotion?.free_gift_value ? ` (worth ₹${Number(selectedGiftPromotion.free_gift_value).toFixed(2)})` : ''}
                         </p>
@@ -152,24 +153,25 @@ export default function CartPage() {
 
               return (
                 <div key={item.id} className="relative">
-                  <div className={`bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 ${
+                  <div className={`bg-white p-6 rounded-xl border border-border-soft shadow-sm hover:shadow-md transition-all duration-200 ${
                     freeUnits > 0 || flashUnits > 0 ? 'ring-2 ring-green-200 bg-gradient-to-r from-green-50 to-emerald-50' : ''
                   }`}>
                     <div className="flex items-center gap-4">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- matches existing cart image usage elsewhere in this file */}
                       <img src={item.image} alt={item.name} className="w-24 h-24 object-cover rounded-lg" />
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-8">{item.name}</h3>
+                        <h3 className="text-lg font-semibold mb-8 text-ink">{item.name}</h3>
                         <div className="flex items-center gap-6">
-                          <div className="flex items-center border rounded-lg overflow-hidden">
-                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="px-3 py-2 hover:bg-gray-100 transition-colors">
+                          <div className="flex items-center border border-border-soft rounded-lg overflow-hidden">
+                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="px-3 py-2 text-ink hover:bg-blush/40 transition-colors">
                               <Minus className="w-4 h-4" />
                             </button>
-                            <span className="px-4 py-2 font-medium">
+                            <span className="px-4 py-2 font-medium text-ink">
                               {item.quantity}
-                              {flashUnits > 0 && <span className="ml-2 text-red-600 font-bold text-sm">({flashUnits} @ ₹{flashSale!.sale_price.toFixed(2)})</span>}
+                              {flashUnits > 0 && <span className="ml-2 text-badge font-bold text-sm">({flashUnits} @ ₹{flashSale!.sale_price.toFixed(2)})</span>}
                               {freeUnits > 0 && <span className="ml-2 text-green-600 font-bold text-sm">({freeUnits} FREE!)</span>}
                             </span>
-                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="px-3 py-2 hover:bg-gray-100 transition-colors">
+                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="px-3 py-2 text-ink hover:bg-blush/40 transition-colors">
                               <Plus className="w-4 h-4" />
                             </button>
                           </div>
@@ -182,22 +184,22 @@ export default function CartPage() {
 
                     <div className="pt-8">
                       <div className="text-right space-y-1">
-                        {paidUnits > 0 && <div className="font-bold text-green-600 text-xl">₹{(item.price * paidUnits).toFixed(2)}</div>}
-                        {flashUnits > 0 && <div className="font-bold text-red-600 text-lg">{flashUnits} × ₹{flashSale!.sale_price.toFixed(2)}</div>}
+                        {paidUnits > 0 && <div className="font-bold text-ink text-xl">₹{(item.price * paidUnits).toFixed(2)}</div>}
+                        {flashUnits > 0 && <div className="font-bold text-badge text-lg">{flashUnits} × ₹{flashSale!.sale_price.toFixed(2)}</div>}
                         {freeUnits > 0 && (
                           <>
-                            <div className="text-sm text-gray-500 line-through">₹{(item.price * freeUnits).toFixed(2)}</div>
+                            <div className="text-sm text-ink-muted line-through">₹{(item.price * freeUnits).toFixed(2)}</div>
                             <div className="font-bold text-green-600 text-lg">{freeUnits} × FREE</div>
                           </>
                         )}
                         {paidUnits === 0 && flashUnits === 0 && freeUnits === 0 && (
-                          <div className="font-bold text-green-600 text-xl">₹{(item.price * item.quantity).toFixed(2)}</div>
+                          <div className="font-bold text-ink text-xl">₹{(item.price * item.quantity).toFixed(2)}</div>
                         )}
                       </div>
                     </div>
                   </div>
                   {flashUnits > 0 && (
-                    <div className="absolute -top-3 -right-3 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                    <div className="absolute -top-3 -right-3 bg-badge text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
                       <Zap className="w-3 h-3" />
                       Flash ₹{flashSale!.sale_price.toFixed(2)}
                     </div>
@@ -214,15 +216,15 @@ export default function CartPage() {
           </div>
 
           <div className="lg:col-span-1">
-            <div className="bg-white p-6 rounded-xl shadow-sm sticky top-24">
-              <h2 className="text-xl font-bold mb-6">Order Summary</h2>
+            <div className="bg-white p-6 rounded-xl border border-border-soft shadow-sm sticky top-24">
+              <h2 className="text-xl font-bold mb-6 text-ink">Order Summary</h2>
               <div className="space-y-4 mb-6">
-                <div className="flex justify-between text-gray-600">
+                <div className="flex justify-between text-ink-muted">
                   <span>Subtotal ({cart.reduce((acc, item) => acc + item.quantity, 0)} items)</span>
                   <span>₹{pricing.subtotal.toFixed(2)}</span>
                 </div>
                 {pricing.flashDiscount > 0 && (
-                  <div className="flex justify-between text-red-600 font-semibold">
+                  <div className="flex justify-between text-badge font-semibold">
                     <span className="flex items-center gap-1"><Zap className="w-4 h-4" />Flash Sale</span>
                     <span>-₹{pricing.flashDiscount.toFixed(2)}</span>
                   </div>
@@ -239,12 +241,12 @@ export default function CartPage() {
                     <span>FREE</span>
                   </div>
                 )}
-                <div className="border-t pt-4">
-                  <div className="flex justify-between text-lg font-bold">
+                <div className="border-t border-border-soft pt-4">
+                  <div className="flex justify-between text-lg font-bold text-ink">
                     <span>Total</span>
                     <span>₹{pricing.total.toFixed(2)}</span>
                   </div>
-                  <p className="text-gray-500 text-sm mt-1">Including GST</p>
+                  <p className="text-ink-muted text-sm mt-1">Including GST</p>
                   {pricing.discount > 0 && (
                     <div className="mt-2 text-center">
                       <p className="text-sm text-green-600 font-medium">🎉 You saved ₹{pricing.discount.toFixed(2)} total!</p>
@@ -258,7 +260,7 @@ export default function CartPage() {
                   const { data: { user } } = await supabase.auth.getUser();
                   router.push(user ? '/checkout' : '/account/login?next=/checkout');
                 }}
-                className="w-full bg-blue-600 text-white py-4 rounded-lg hover:bg-blue-700 transition-colors"
+                className="w-full bg-accent-500 text-ink font-semibold py-4 rounded-lg hover:bg-accent-600 transition-colors"
               >
                 Proceed to Checkout
               </button>

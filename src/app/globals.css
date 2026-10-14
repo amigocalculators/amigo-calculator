@@ -1,38 +1,37 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  /* Ink / paper — base text + background, replaces ad hoc gray-800/900 and bg-white */
+  --color-ink: #1a1a1a;
+  --color-ink-muted: #6b6b6b;
+  --color-paper: #ffffff;
+  --color-border-soft: #e7e5e4;
+
+  /* Gold accent — primary buttons, active nav states, login header gradient */
+  --color-accent-400: #ffd54a;
+  --color-accent-500: #f5b301;
+  --color-accent-600: #d99a00;
+
+  /* Blush — category tiles, soft card surfaces */
+  --color-blush: #fde7e3;
+  --color-blush-deep: #fbd3cc;
+
+  /* Wine — discount badges ("UPTO 35% OFF" pills) */
+  --color-badge: #8b2635;
+  --color-badge-dark: #6e1d29;
+}
+
 :root {
-  --font-color: #323232;
-  --font-color-sub: #666;
-  --bg-color: #fff;
-  --main-color: #323232;
-  --main-focus: #2d8cf0;
+  --font-color: var(--color-ink);
+  --font-color-sub: var(--color-ink-muted);
+  --bg-color: var(--color-paper);
+  --main-color: var(--color-ink);
+  --main-focus: var(--color-accent-500);
 }
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-.card-btn {
-  height: 40px;
-  background: var(--bg-color);
-  border: 2px solid var(--main-color);
-  border-radius: 5px;
-  padding: 0 15px;
-  transition: all 0.3s;
-}
-
-.card-btn svg {
-  width: 100%;
-  height: 100%;
-  transition: all 0.3s;
-}
-
-.card-btn:active {
-  transform: translateY(3px);
-}
-
-.card-divider {
-  width: 100%;
-  border: 1px solid var(--main-color);
-  border-radius: 50px;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
 }

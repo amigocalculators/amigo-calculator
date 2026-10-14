@@ -24,7 +24,7 @@ type Profile = { id: string; name: string | null; email: string | null; phone: s
 const CANCELLABLE_STATUSES = ['confirmed', 'processing', 'delivered'];
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  confirmed: { label: 'Order Confirmed', color: 'bg-blue-100 text-blue-700' },
+  confirmed: { label: 'Order Confirmed', color: 'bg-blush text-ink' },
   processing: { label: 'Processing', color: 'bg-yellow-100 text-yellow-700' },
   shipped: { label: 'Shipped', color: 'bg-purple-100 text-purple-700' },
   delivered: { label: 'Delivered', color: 'bg-green-100 text-green-700' },
@@ -37,7 +37,7 @@ function OrderCard({ order, onCancelled }: { order: Order; onCancelled: (id: str
   const [error, setError] = useState('');
 
   const canCancel = CANCELLABLE_STATUSES.includes(order.status) && isWithinCancelWindow(order);
-  const statusInfo = STATUS_LABELS[order.status] ?? { label: order.status, color: 'bg-gray-100 text-gray-600' };
+  const statusInfo = STATUS_LABELS[order.status] ?? { label: order.status, color: 'bg-blush/40 text-ink-muted' };
 
   const handleCancel = async () => {
     setLoading(true);
@@ -63,40 +63,40 @@ function OrderCard({ order, onCancelled }: { order: Order; onCancelled: (id: str
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-white rounded-xl border border-border-soft shadow-sm overflow-hidden">
       <div className="p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-ink-muted">
               {new Date(order.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
             </p>
-            <p className="text-xs text-gray-400 font-mono">{order.razorpay_payment_id}</p>
+            <p className="text-xs text-ink-muted font-mono">{order.razorpay_payment_id}</p>
           </div>
           <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
         </div>
 
         <div className="space-y-2 mb-4">
           {order.items.map((item, i) => (
-            <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-lg p-2.5">
+            <div key={i} className="flex items-center gap-3 bg-blush/30 rounded-lg p-2.5">
               {item.image && <img src={item.image} alt={item.name} className="w-10 h-10 object-cover rounded" />}
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-800">{item.name}</p>
-                <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                <p className="text-sm font-medium text-ink">{item.name}</p>
+                <p className="text-xs text-ink-muted">Qty: {item.quantity}</p>
               </div>
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-ink">
                 {item.price === 0 ? 'FREE' : `₹${(item.price * item.quantity).toFixed(2)}`}
               </span>
             </div>
           ))}
         </div>
 
-        <div className="flex items-center justify-between border-t pt-3">
-          <span className="font-semibold text-gray-800">Total</span>
-          <span className="font-bold text-gray-900">₹{Number(order.total).toFixed(2)}</span>
+        <div className="flex items-center justify-between border-t border-border-soft pt-3">
+          <span className="font-semibold text-ink">Total</span>
+          <span className="font-bold text-ink">₹{Number(order.total).toFixed(2)}</span>
         </div>
 
         {canCancel && (
-          <div className="border-t pt-3 mt-3">
+          <div className="border-t border-border-soft pt-3 mt-3">
             {error && <p className="text-red-600 text-sm mb-2 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
             {!showConfirm ? (
               <button onClick={() => setShowConfirm(true)}
@@ -113,7 +113,7 @@ function OrderCard({ order, onCancelled }: { order: Order; onCancelled: (id: str
                     Yes, Cancel
                   </button>
                   <button onClick={() => setShowConfirm(false)} disabled={loading}
-                    className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold rounded-lg">
+                    className="flex-1 py-2 bg-blush hover:bg-blush-deep text-ink text-sm font-semibold rounded-lg">
                     Keep Order
                   </button>
                 </div>
@@ -164,20 +164,20 @@ export default function AccountOrdersClient({ profile, orders: initialOrders }: 
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16">
+    <div className="min-h-screen bg-paper pt-16">
       <div className="max-w-2xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2"><Package className="w-6 h-6" /> My Orders</h1>
-            {profile.name && <p className="text-gray-500 text-sm mt-1">{profile.name}</p>}
+            <h1 className="text-2xl font-bold flex items-center gap-2 text-ink"><Package className="w-6 h-6" /> My Orders</h1>
+            {profile.name && <p className="text-ink-muted text-sm mt-1">{profile.name}</p>}
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
+          <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-ink-muted hover:text-ink">
             <LogOut className="w-4 h-4" /> Logout
           </button>
         </div>
 
         {orders.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-10 text-center text-gray-500">
+          <div className="bg-white rounded-xl border border-border-soft shadow-sm p-10 text-center text-ink-muted">
             No orders yet.
           </div>
         ) : (

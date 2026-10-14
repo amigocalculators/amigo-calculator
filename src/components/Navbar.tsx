@@ -2,14 +2,29 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ShoppingCart, Menu, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ShoppingCart, Menu, X, User, Search, ChevronDown } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
+import { PRODUCT_CATEGORIES } from '@/data/categories';
+import LoginModal from '@/components/LoginModal';
+
+const NAV_LINKS = [
+  { href: '/event', label: 'Event' },
+  { href: '/bulk-orders', label: 'Bulk Orders' },
+  { href: '/about', label: 'About Us' },
+];
 
 const Navbar = () => {
+  const router = useRouter();
   const { cart } = useCartStore();
+  const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+  const [categoriesOpen, setCategoriesOpen] = React.useState(false);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [loginOpen, setLoginOpen] = React.useState(false);
 
   React.useEffect(() => {
     const supabase = createClient();
@@ -20,116 +35,142 @@ const Navbar = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) return;
+    router.push(`/products?q=${encodeURIComponent(searchTerm.trim())}`);
+    setIsMenuOpen(false);
+  };
+
   return (
-    <nav className="bg-white shadow-lg fixed w-full top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold text-gray-800">
-              <img src="/LOGO1.png" className="h-[40px]" alt="Amigo Calculators" />
-            </Link>
-          </div>
+    <nav className="fixed top-0 z-50 w-full border-b border-border-soft bg-white">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
+        <Link href="/" className="shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element -- matches existing logo usage elsewhere in the codebase */}
+          <img src="/LOGO1.png" className="h-9" alt="Amigo Calculators" />
+        </Link>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-12 text-xl">
-            <Link href="/" className="text-gray-600 hover:text-gray-900">
-              Home
+        {/* Desktop nav */}
+        <div className="hidden items-center gap-7 md:flex">
+          <div
+            className="relative"
+            onMouseEnter={() => setCategoriesOpen(true)}
+            onMouseLeave={() => setCategoriesOpen(false)}
+          >
+            <Link href="/products" className="flex items-center gap-1 font-medium text-ink hover:text-accent-600">
+              All Categories <ChevronDown className="h-4 w-4" />
             </Link>
-            <Link href="/products" className="text-gray-600 hover:text-gray-900">
-              Products
-            </Link>
-            <Link href="/event" className="text-gray-600 hover:text-gray-900">
-              Event
-            </Link>
-            <Link href="/bulk-orders" className="text-gray-600 hover:text-gray-900">
-              Bulk Orders
-            </Link>
-            <Link href="/about" className="text-gray-600 hover:text-gray-900">
-              About Us
-            </Link>
-            <Link href={isLoggedIn ? '/account/orders' : '/account/login'} className="text-gray-600 hover:text-gray-900 flex items-center gap-1">
-              <User className="w-5 h-5" />
-              <span className="text-base">{isLoggedIn ? 'My Orders' : 'Login'}</span>
-            </Link>
-            <Link href="/cart" className="text-gray-600 hover:text-gray-900 relative">
-              <ShoppingCart className="w-6 h-6" />
-              {cart.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                  {cart.reduce((acc, item) => acc + item.quantity, 0)}
-                </span>
-              )}
-            </Link>
+            {categoriesOpen && (
+              <div className="absolute left-0 top-full w-56 rounded-xl border border-border-soft bg-white py-2 shadow-lg">
+                {PRODUCT_CATEGORIES.map((category) => (
+                  <Link
+                    key={category}
+                    href={`/products?category=${encodeURIComponent(category)}`}
+                    className="block px-4 py-2 text-sm text-ink hover:bg-blush/60"
+                  >
+                    {category}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center gap-6">
-            <Link href="/cart" className="text-gray-600 hover:text-gray-900 relative">
-              <ShoppingCart className="w-6 h-6" />
-              {cart.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                  {cart.reduce((acc, item) => acc + item.quantity, 0)}
-                </span>
-              )}
+          {NAV_LINKS.map((link) => (
+            <Link key={link.href} href={link.href} className="font-medium text-ink hover:text-accent-600">
+              {link.label}
             </Link>
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-          </div>
+          ))}
         </div>
 
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1">
-              <Link
-                href="/"
-                className="block px-3 py-2 text-gray-600 hover:text-gray-900"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Home
-              </Link>
-              <Link
-                href="/products"
-                className="block px-3 py-2 text-gray-600 hover:text-gray-900"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Products
-              </Link>
-              <Link
-                href="/event"
-                className="block px-3 py-2 text-gray-600 hover:text-gray-900"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Event
-              </Link>
-              <Link
-                href="/bulk-orders"
-                className="block px-3 py-2 text-gray-600 hover:text-gray-900"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Bulk Orders
-              </Link>
-              <Link
-                href="/about"
-                className="block px-3 py-2 text-gray-600 hover:text-gray-900"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                About Us
-              </Link>
-              <Link
-                href={isLoggedIn ? '/account/orders' : '/account/login'}
-                className="block px-3 py-2 text-gray-600 hover:text-gray-900"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {isLoggedIn ? 'My Orders' : 'Login'}
-              </Link>
-            </div>
-          </div>
-        )}
+        {/* Search - desktop */}
+        <form onSubmit={handleSearch} className="relative hidden max-w-sm flex-1 md:block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search products..."
+            className="w-full rounded-full border border-border-soft bg-blush/30 py-2 pl-9 pr-4 text-sm focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+          />
+        </form>
+
+        {/* Icons */}
+        <div className="flex items-center gap-5">
+          {isLoggedIn ? (
+            <Link href="/account/orders" className="hidden items-center gap-1.5 text-ink hover:text-accent-600 md:flex">
+              <User className="h-5 w-5" />
+              <span className="text-sm font-medium">My Orders</span>
+            </Link>
+          ) : (
+            <button
+              onClick={() => setLoginOpen(true)}
+              className="hidden items-center gap-1.5 text-ink hover:text-accent-600 md:flex"
+            >
+              <User className="h-5 w-5" />
+              <span className="text-sm font-medium">Login</span>
+            </button>
+          )}
+          <Link href="/cart" className="relative text-ink hover:text-accent-600">
+            <ShoppingCart className="h-6 w-6" />
+            {cartCount > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-badge text-xs font-semibold text-white">
+                {cartCount}
+              </span>
+            )}
+          </Link>
+          <button onClick={() => setIsMenuOpen((open) => !open)} className="text-ink md:hidden" aria-label="Toggle menu">
+            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile drawer */}
+      {isMenuOpen && (
+        <div className="border-t border-border-soft bg-white px-4 py-4 md:hidden">
+          <form onSubmit={handleSearch} className="relative mb-4">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search products..."
+              className="w-full rounded-full border border-border-soft bg-blush/30 py-2 pl-9 pr-4 text-sm focus:border-accent-500 focus:outline-none"
+            />
+          </form>
+          <div className="flex flex-col gap-1">
+            <Link href="/products" className="rounded-lg px-3 py-2 font-medium text-ink hover:bg-blush/60" onClick={() => setIsMenuOpen(false)}>
+              All Categories
+            </Link>
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-lg px-3 py-2 font-medium text-ink hover:bg-blush/60"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {link.label}
+              </Link>
+            ))}
+            {isLoggedIn ? (
+              <Link
+                href="/account/orders"
+                className="rounded-lg px-3 py-2 font-medium text-ink hover:bg-blush/60"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                My Orders
+              </Link>
+            ) : (
+              <button
+                onClick={() => { setIsMenuOpen(false); setLoginOpen(true); }}
+                className="rounded-lg px-3 py-2 text-left font-medium text-ink hover:bg-blush/60"
+              >
+                Login
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </nav>
   );
 };

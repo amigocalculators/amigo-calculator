@@ -13,7 +13,7 @@ type Channel = 'email' | 'phone';
 
 type ResumeProfile = { email: string | null; phone: string | null };
 
-export default function AccountLoginClient({ resumeProfile, next }: { resumeProfile?: ResumeProfile; next?: string }) {
+export default function AccountLoginClient({ resumeProfile, next, onSuccess }: { resumeProfile?: ResumeProfile; next?: string; onSuccess?: () => void }) {
   const router = useRouter();
   const supabase = createClient();
   const destination = next ?? '/account/orders';
@@ -99,6 +99,7 @@ export default function AccountLoginClient({ resumeProfile, next }: { resumeProf
     setLoading(false);
 
     if (profile) {
+      onSuccess?.();
       router.push(destination);
       router.refresh();
     } else {
@@ -131,107 +132,115 @@ export default function AccountLoginClient({ resumeProfile, next }: { resumeProf
       setError(error.message);
       return;
     }
+    onSuccess?.();
     router.push(destination);
     router.refresh();
   };
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-md p-8">
-        <h1 className="text-2xl font-bold text-center mb-2">
-          {step === 'complete-profile' ? 'Almost done' : 'Login / Sign up'}
+    <div className="w-full max-w-md rounded-2xl shadow-lg overflow-hidden">
+      {/* Gold gradient header band, matching the login header look */}
+      <div className="bg-gradient-to-br from-accent-400 to-accent-600 px-8 pt-8 pb-10 text-center">
+        <h1 className="text-2xl font-bold text-ink">
+          {step === 'complete-profile' ? 'Almost done' : 'Login to your comfort zone'}
         </h1>
-        <p className="text-gray-500 text-center text-sm mb-6">
-          {step === 'enter-contact' && 'No password needed — we’ll send you a one-time code.'}
+        <p className="text-ink/70 text-sm mt-1">
+          {step === 'enter-contact' && "Let's get started — no password needed."}
           {step === 'enter-otp' && `Enter the code sent to ${contact}`}
           {step === 'complete-profile' && 'Just a couple more details to set up your account.'}
         </p>
+      </div>
 
+      <div className="bg-white px-8 py-8 -mt-4 rounded-t-2xl relative">
         {error && <p className="mb-4 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
 
-        {step === 'enter-contact' && (
-          <form onSubmit={handleSendOtp} className="space-y-4">
-            <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-              <button type="button" onClick={() => { setChannel('email'); setContact(''); }}
-                className={`flex-1 py-2.5 flex items-center justify-center gap-2 text-sm font-medium ${channel === 'email' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}>
-                <Mail className="w-4 h-4" /> Email
-              </button>
-              {/* Phone login temporarily disabled (needs SMS provider + DLT registration) — uncomment to re-enable
-              <button type="button" onClick={() => { setChannel('phone'); setContact(''); }}
-                className={`flex-1 py-2.5 flex items-center justify-center gap-2 text-sm font-medium ${channel === 'phone' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}>
-                <Phone className="w-4 h-4" /> Phone
-              </button>
-              */}
-            </div>
+          {step === 'enter-contact' && (
+            <form onSubmit={handleSendOtp} className="space-y-4">
+              <div className="flex rounded-lg border border-border-soft overflow-hidden">
+                <button type="button" onClick={() => { setChannel('email'); setContact(''); }}
+                  className={`flex-1 py-2.5 flex items-center justify-center gap-2 text-sm font-medium ${channel === 'email' ? 'bg-accent-500 text-ink' : 'bg-white text-ink-muted'}`}>
+                  <Mail className="w-4 h-4" /> Email
+                </button>
+                {/* Phone login temporarily disabled (needs SMS provider + DLT registration) — uncomment to re-enable
+                <button type="button" onClick={() => { setChannel('phone'); setContact(''); }}
+                  className={`flex-1 py-2.5 flex items-center justify-center gap-2 text-sm font-medium ${channel === 'phone' ? 'bg-accent-500 text-ink' : 'bg-white text-ink-muted'}`}>
+                  <Phone className="w-4 h-4" /> Phone
+                </button>
+                */}
+              </div>
 
-            {channel === 'email' ? (
-              <input type="email" required placeholder="you@example.com" value={contact}
-                onChange={(e) => setContact(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" />
-            ) : (
-              <input type="tel" required placeholder="10-digit mobile number" pattern="[0-9]{10}" value={contact}
-                onChange={(e) => setContact(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" />
-            )}
-
-            <button type="submit" disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              Send OTP
-            </button>
-          </form>
-        )}
-
-        {step === 'enter-otp' && (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <input type="text" required inputMode="numeric" placeholder="Enter the code" value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none text-center tracking-widest text-lg" />
-            <button type="submit" disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              Verify
-            </button>
-            <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0 || resending}
-              className="w-full text-sm font-medium text-blue-600 hover:text-blue-700 disabled:text-gray-400 flex items-center justify-center gap-2">
-              {resending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
-            </button>
-            <button type="button" onClick={() => { setStep('enter-contact'); setOtp(''); setError(''); setResendCooldown(0); }}
-              className="w-full text-sm text-gray-500 hover:text-gray-700">
-              Use a different email/phone
-            </button>
-          </form>
-        )}
-
-        {step === 'complete-profile' && (
-          <form onSubmit={handleCompleteProfile} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
-              <input required value={name} onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {channel === 'email' ? 'Phone Number' : 'Email'}
-              </label>
               {channel === 'email' ? (
-                <input type="tel" required placeholder="10-digit mobile number" pattern="[0-9]{10}" value={otherContact}
-                  onChange={(e) => setOtherContact(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" />
+                <input type="email" required placeholder="you@example.com" value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-border-soft focus:ring-2 focus:ring-accent-500 outline-none" />
               ) : (
-                <input type="email" required placeholder="you@example.com" value={otherContact}
-                  onChange={(e) => setOtherContact(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" />
+                <input type="tel" required placeholder="10-digit mobile number" pattern="[0-9]{10}" value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-border-soft focus:ring-2 focus:ring-accent-500 outline-none" />
               )}
-            </div>
-            <button type="submit" disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              Finish
-            </button>
-          </form>
-        )}
+
+              <button type="submit" disabled={loading}
+                className="w-full bg-accent-500 text-ink py-3 rounded-lg font-semibold hover:bg-accent-600 disabled:opacity-60 flex items-center justify-center gap-2">
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Send OTP
+              </button>
+
+              <p className="text-xs text-ink-muted text-center">
+                By continuing, you agree to our Terms &amp; Privacy Policy.
+              </p>
+            </form>
+          )}
+
+          {step === 'enter-otp' && (
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <input type="text" required inputMode="numeric" placeholder="Enter the code" value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-border-soft focus:ring-2 focus:ring-accent-500 outline-none text-center tracking-widest text-lg" />
+              <button type="submit" disabled={loading}
+                className="w-full bg-accent-500 text-ink py-3 rounded-lg font-semibold hover:bg-accent-600 disabled:opacity-60 flex items-center justify-center gap-2">
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Verify
+              </button>
+              <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0 || resending}
+                className="w-full text-sm font-medium text-accent-600 hover:text-accent-700 disabled:text-ink-muted flex items-center justify-center gap-2">
+                {resending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+              </button>
+              <button type="button" onClick={() => { setStep('enter-contact'); setOtp(''); setError(''); setResendCooldown(0); }}
+                className="w-full text-sm text-ink-muted hover:text-ink">
+                Use a different email/phone
+              </button>
+            </form>
+          )}
+
+          {step === 'complete-profile' && (
+            <form onSubmit={handleCompleteProfile} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-ink mb-1">Your Name</label>
+                <input required value={name} onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-border-soft focus:ring-2 focus:ring-accent-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink mb-1">
+                  {channel === 'email' ? 'Phone Number' : 'Email'}
+                </label>
+                {channel === 'email' ? (
+                  <input type="tel" required placeholder="10-digit mobile number" pattern="[0-9]{10}" value={otherContact}
+                    onChange={(e) => setOtherContact(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border border-border-soft focus:ring-2 focus:ring-accent-500 outline-none" />
+                ) : (
+                  <input type="email" required placeholder="you@example.com" value={otherContact}
+                    onChange={(e) => setOtherContact(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border border-border-soft focus:ring-2 focus:ring-accent-500 outline-none" />
+                )}
+              </div>
+              <button type="submit" disabled={loading}
+                className="w-full bg-accent-500 text-ink py-3 rounded-lg font-semibold hover:bg-accent-600 disabled:opacity-60 flex items-center justify-center gap-2">
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Finish
+              </button>
+            </form>
+          )}
       </div>
     </div>
   );
