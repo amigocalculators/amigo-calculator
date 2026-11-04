@@ -36,8 +36,8 @@ const Banner2 = ({ products }: { products: Product[] }) => {
         />
         */}
         <Image
-          src="/Image/Banner/OFF-2.jpg"
-          alt="Amigo Plus Rakhi Offer — Scientific Calculator for ₹1"
+          src="/Image/Banner/diwali-banner.jpg"
+          alt="Amigo Calculators — Happy Diwali Festive Deals on Writing Pads & Calculators"
           width={1920}
           height={913}
           className="w-full h-auto"
