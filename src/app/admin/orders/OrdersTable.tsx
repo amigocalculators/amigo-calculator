@@ -62,6 +62,7 @@ type Order = {
   status: string;
   created_at: string;
   flash_sale_id: number | null;
+  coupon_code: string | null;
 };
 
 // Single source of truth for the export column picker AND the CSV itself, so the
@@ -72,6 +73,7 @@ const EXPORT_COLUMNS: { key: string; label: string; getValue: (order: Order) => 
   { key: 'phone', label: 'Phone', getValue: (o) => o.customer_phone },
   { key: 'items', label: 'Items', getValue: (o) => o.items.filter((i) => i.id >= 0).map((i) => `${i.name} x${i.quantity}`).join('; ') },
   { key: 'offer', label: 'Offer Claimed', getValue: (o) => getOfferLabel(o) },
+  { key: 'coupon', label: 'Coupon Claimed', getValue: (o) => o.coupon_code ?? '' },
   { key: 'subtotal', label: 'Subtotal', getValue: (o) => Number(o.subtotal).toFixed(2) },
   { key: 'discount', label: 'Discount', getValue: (o) => Number(o.discount).toFixed(2) },
   { key: 'total', label: 'Total', getValue: (o) => Number(o.total).toFixed(2) },
@@ -367,6 +369,7 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
                 <th className="px-4 py-3 font-medium">Customer</th>
                 <th className="px-4 py-3 font-medium">Items</th>
                 <th className="px-4 py-3 font-medium">Offer Claimed</th>
+                <th className="px-4 py-3 font-medium">Coupon Claimed</th>
                 <th className="px-4 py-3 font-medium">Total</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Date</th>
@@ -405,6 +408,15 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
                         ) : Number(order.discount) > 0 ? (
                           <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
                             🎉 Buy 2 Get 1
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {order.coupon_code ? (
+                          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                            🏷️ {order.coupon_code}
                           </span>
                         ) : (
                           <span className="text-gray-400 text-xs">—</span>
@@ -487,7 +499,7 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
                     </tr>
                     {expanded === order.id && (
                       <tr key={`${order.id}-detail`} className="bg-blue-50">
-                        <td colSpan={7} className="px-4 py-4">
+                        <td colSpan={8} className="px-4 py-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                             <div>
                               <p className="font-medium mb-1">Shipping Address</p>

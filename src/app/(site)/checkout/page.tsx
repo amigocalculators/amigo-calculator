@@ -10,6 +10,7 @@ import { getFlashSaleStatus, isFlashSaleLive } from '@/lib/flashSale';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { CreditCard, MapPin, User, Shield, Truck, Package, Gift, Percent, Zap, Tag } from 'lucide-react';
+import ConfettiBurst from '@/components/ConfettiBurst';
 
 declare global {
   interface Window {
@@ -70,6 +71,9 @@ export default function CheckoutPage() {
   // so a stale preview here (e.g. cart changed after applying) never affects what's charged.
   const [appliedCouponDiscount, setAppliedCouponDiscount] = useState(0);
   const [couponAutoChecked, setCouponAutoChecked] = useState(false);
+  // Incremented (never just toggled) so re-applying a coupon mid-checkout re-triggers the
+  // burst via a changed React `key`, even if the previous one hasn't finished yet.
+  const [celebrate, setCelebrate] = useState(0);
 
   useEffect(() => {
     getActiveGiftPromotions().then(setGiftPromotions);
@@ -146,6 +150,9 @@ export default function CheckoutPage() {
         setAppliedCouponDiscount(data.discount);
         setCouponInput('');
         setCouponMessage({ type: 'success', text: `Coupon applied! You saved ₹${data.discount.toFixed(2)}.` });
+        // Only for a real click — the silent re-check of a persisted coupon on page load
+        // shouldn't surprise the shopper with confetti they didn't ask for.
+        if (!silent) setCelebrate((n) => n + 1);
       } else {
         setAppliedCouponDiscount(0);
         if (silent) {
@@ -310,6 +317,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="pt-20 pb-12 bg-gray-200">
+      {celebrate > 0 && <ConfettiBurst key={celebrate} onDone={() => setCelebrate(0)} />}
       <div className="max-w-7xl mx-auto px-4">
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold">Checkout</h1>
