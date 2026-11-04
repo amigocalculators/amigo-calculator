@@ -5,6 +5,7 @@ import { getActiveGiftPromotions } from '@/lib/promotions';
 import { getProductPromotions } from '@/lib/productPromotions';
 import { calculateOrderPricing } from '@/lib/orderPricing';
 import { isFlashSaleLive, isSoldOutDiscountActive } from '@/lib/flashSale';
+import { getCouponByCode } from '@/lib/couponCodes';
 import { CartItem, FlashSale } from '@/types';
 
 const razorpay = new Razorpay({
@@ -33,10 +34,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
     }
 
-    const { cart, selectedOfferType, customerDetails }: {
+    const { cart, selectedOfferType, customerDetails, couponCode }: {
       cart: { id: number; quantity: number }[];
       selectedOfferType: number | null;
       customerDetails: CustomerDetails;
+      couponCode?: string | null;
     } = await req.json();
 
     if (!Array.isArray(cart) || cart.length === 0) {
@@ -114,6 +116,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Look up the code fresh, server-side — never trust whatever discount the client
+    // thinks applies. A rejected/unknown code silently resolves to null rather than
+    // failing checkout, same as the validate endpoint's 'not_found' case.
+    const coupon = couponCode ? await getCouponByCode(supabase, couponCode) : null;
+
     const pricing = calculateOrderPricing({
       cart: fullCart,
       productPromotions,
@@ -121,7 +128,12 @@ export async function POST(req: NextRequest) {
       selectedOfferType: selectedOfferType ?? null,
       flashSale,
       flashEligible,
+      coupon,
     });
+
+    // Only persist the code if it actually ended up applied — a rejected (e.g.
+    // below-minimum, not-combinable) or unknown code must not be recorded as if it worked.
+    const appliedCouponCode = coupon && !pricing.couponRejectReason ? coupon.code : null;
 
     if (pricing.total <= 0) {
       return NextResponse.json({ error: 'Invalid order total' }, { status: 400 });
@@ -188,6 +200,7 @@ export async function POST(req: NextRequest) {
       status: 'pending',
       user_id: user.id,
       flash_sale_id: flashApplied ? flashSale!.id : null,
+      coupon_code: appliedCouponCode,
     });
 
     if (insertError) {

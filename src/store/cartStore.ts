@@ -16,6 +16,8 @@ interface CartState {
   total: number;
   selectedOfferType: OfferChoice | null;
   setSelectedOfferType: (choice: OfferChoice | null) => void;
+  couponCode: string | null;
+  setCouponCode: (code: string | null) => void;
 }
 
 export const useCartStore = create<CartState>()(
@@ -25,6 +27,8 @@ export const useCartStore = create<CartState>()(
       total: 0,
       selectedOfferType: null,
       setSelectedOfferType: (choice) => set({ selectedOfferType: choice }),
+      couponCode: null,
+      setCouponCode: (code) => set({ couponCode: code }),
 
       addToCart: (product: Product) => {
         set((state) => {
@@ -67,7 +71,7 @@ export const useCartStore = create<CartState>()(
       },
 
       clearCart: () => {
-        set({ cart: [], total: 0, selectedOfferType: null });
+        set({ cart: [], total: 0, selectedOfferType: null, couponCode: null });
       },
     }),
     {

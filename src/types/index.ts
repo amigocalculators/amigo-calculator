@@ -94,6 +94,24 @@ export interface ProductPromotion {
   created_at: string;
 }
 
+// A cart-level coupon, configured from the admin Coupons tab and typed in at checkout.
+// Unlike ProductPromotion/Promotion, these are looked up by code (never publicly listed)
+// — see getCouponByCode in src/lib/couponCodes.ts.
+export interface CouponCode {
+  id: number;
+  code: string;
+  discount_type: 'flat' | 'percentage';
+  discount_value: number;
+  min_cart_total: number;
+  // If false, this coupon is rejected when the cart already has a flash-sale discount,
+  // a product promotion discount, or a selected free gift active.
+  combinable_with_other_offers: boolean;
+  active: boolean;
+  starts_at: string;
+  ends_at: string;
+  created_at: string;
+}
+
 export interface FlashSale {
   id: number;
   product_id: number;

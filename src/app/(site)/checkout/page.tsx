@@ -9,7 +9,7 @@ import { calculateOrderPricing } from '@/lib/orderPricing';
 import { getFlashSaleStatus, isFlashSaleLive } from '@/lib/flashSale';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
-import { CreditCard, MapPin, User, Shield, Truck, Package, Gift, Percent, Zap } from 'lucide-react';
+import { CreditCard, MapPin, User, Shield, Truck, Package, Gift, Percent, Zap, Tag } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -39,8 +39,18 @@ const indianStates = [
   'Delhi','Jammu and Kashmir','Ladakh','Lakshadweep','Puducherry',
 ];
 
+function describeCouponRejection(data: { reason?: string; minCartTotal?: number }): string {
+  if (data.reason === 'below_minimum') {
+    return `This coupon needs a cart total of at least ₹${(data.minCartTotal ?? 0).toFixed(2)}.`;
+  }
+  if (data.reason === 'not_combinable') {
+    return "This coupon can't be combined with your current offer.";
+  }
+  return 'This coupon is invalid or has expired.';
+}
+
 export default function CheckoutPage() {
-  const { cart, clearCart, selectedOfferType, setSelectedOfferType } = useCartStore();
+  const { cart, clearCart, selectedOfferType, setSelectedOfferType, couponCode, setCouponCode } = useCartStore();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
@@ -51,6 +61,15 @@ export default function CheckoutPage() {
   const [customerDetails, setCustomerDetails] = useState({
     name: '', email: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
+  const [couponInput, setCouponInput] = useState('');
+  const [couponApplying, setCouponApplying] = useState(false);
+  const [couponMessage, setCouponMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // The validated discount ₹ amount for the currently-applied coupon, from the last
+  // successful /api/coupon/validate call — purely a display preview. /api/checkout
+  // independently re-validates the code and recomputes the real discount at charge time,
+  // so a stale preview here (e.g. cart changed after applying) never affects what's charged.
+  const [appliedCouponDiscount, setAppliedCouponDiscount] = useState(0);
+  const [couponAutoChecked, setCouponAutoChecked] = useState(false);
 
   useEffect(() => {
     getActiveGiftPromotions().then(setGiftPromotions);
@@ -60,6 +79,16 @@ export default function CheckoutPage() {
       setFlashAlreadyClaimed(alreadyClaimed);
     });
   }, []);
+
+  // A coupon applied on an earlier visit is persisted in cartStore — re-check it once
+  // against the live cart so the discount preview isn't stale (and silently drop it if
+  // it no longer validates, e.g. it expired since it was applied).
+  useEffect(() => {
+    if (couponAutoChecked || !couponCode || cart.length === 0) return;
+    setCouponAutoChecked(true);
+    applyCoupon(couponCode, { silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [couponAutoChecked, couponCode, cart.length]);
 
   // Placing an order requires being logged in — cart itself stays accessible to
   // guests (it lives in localStorage, untouched by this redirect), only checkout is gated.
@@ -96,6 +125,50 @@ export default function CheckoutPage() {
     setCustomerDetails((prev) => ({ ...prev, [name]: value }));
   };
 
+  // `silent`: used for the auto re-check of a persisted coupon on load — stays quiet on
+  // failure (just drops the stale code) instead of surfacing an error the user never asked for.
+  const applyCoupon = async (rawCode: string, { silent = false }: { silent?: boolean } = {}) => {
+    const code = rawCode.trim();
+    if (!code) return;
+    setCouponApplying(true);
+    if (!silent) setCouponMessage(null);
+    try {
+      const res = await fetch('/api/coupon/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, cart: cart.map((item) => ({ id: item.id, quantity: item.quantity })) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to validate coupon');
+
+      if (data.valid) {
+        setCouponCode(code.toUpperCase());
+        setAppliedCouponDiscount(data.discount);
+        setCouponInput('');
+        setCouponMessage({ type: 'success', text: `Coupon applied! You saved ₹${data.discount.toFixed(2)}.` });
+      } else {
+        setAppliedCouponDiscount(0);
+        if (silent) {
+          setCouponCode(null);
+        } else {
+          setCouponMessage({ type: 'error', text: describeCouponRejection(data) });
+        }
+      }
+    } catch (err) {
+      setAppliedCouponDiscount(0);
+      if (!silent) setCouponMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to validate coupon' });
+    } finally {
+      setCouponApplying(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode(null);
+    setAppliedCouponDiscount(0);
+    setCouponMessage(null);
+    setCouponInput('');
+  };
+
   const isPersonalInfoComplete = () => {
     const { name, email, phone } = customerDetails;
     return name.trim() !== '' && email.trim() !== '' && phone.trim().length === 10;
@@ -120,6 +193,15 @@ export default function CheckoutPage() {
     : null;
   const displayCart = pricing.giftItem ? [...cart, pricing.giftItem] : cart;
 
+  // The coupon's discount is only ever previewed via /api/coupon/validate (see
+  // applyCoupon above), not recomputed here through calculateOrderPricing — the admin
+  // coupon row's fields (discount type/value/min cart total) are deliberately never
+  // sent to the browser, only the already-validated ₹ amount. /api/checkout is what
+  // actually re-derives and charges the authoritative total.
+  const couponDiscount = couponCode ? appliedCouponDiscount : 0;
+  const displayTotal = Math.max(0, pricing.total - couponDiscount);
+  const totalSaved = pricing.discount + couponDiscount;
+
   const handleCheckout = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -135,6 +217,7 @@ export default function CheckoutPage() {
           cart: cart.map((item) => ({ id: item.id, quantity: item.quantity })),
           selectedOfferType,
           customerDetails,
+          couponCode,
         }),
       });
 
@@ -361,6 +444,43 @@ export default function CheckoutPage() {
                 </div>
               ) : null}
 
+              <div className="mb-6 border border-gray-200 rounded-xl p-4">
+                <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Tag className="w-4 h-4" />Have a coupon code?
+                </p>
+                {couponCode ? (
+                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    <span className="text-sm font-medium text-green-700">Applied: {couponCode}</span>
+                    <button type="button" onClick={handleRemoveCoupon} className="text-xs text-gray-500 hover:text-gray-700 underline">
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value)}
+                      placeholder="Enter code"
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => applyCoupon(couponInput)}
+                      disabled={couponApplying || !couponInput.trim()}
+                      className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {couponApplying ? 'Applying...' : 'Apply'}
+                    </button>
+                  </div>
+                )}
+                {couponMessage && (
+                  <p className={`text-sm mt-2 ${couponMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                    {couponMessage.text}
+                  </p>
+                )}
+              </div>
+
               <div className="space-y-4 mb-6">
                 {displayCart.map((item) => {
                   if (isFreeGiftItem(item)) {
@@ -457,10 +577,16 @@ export default function CheckoutPage() {
                     <span>FREE</span>
                   </div>
                 )}
-                <div className="flex justify-between text-lg font-bold"><span>Total</span><span>₹{pricing.total.toFixed(2)}</span></div>
-                {pricing.discount > 0 && (
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-green-600 font-semibold">
+                    <span className="flex items-center gap-1"><Tag className="w-4 h-4" />Coupon ({couponCode})</span>
+                    <span>-₹{couponDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-lg font-bold"><span>Total</span><span>₹{displayTotal.toFixed(2)}</span></div>
+                {totalSaved > 0 && (
                   <div className="text-center">
-                    <p className="text-sm text-green-600 font-medium">🎉 You saved ₹{pricing.discount.toFixed(2)} total!</p>
+                    <p className="text-sm text-green-600 font-medium">🎉 You saved ₹{totalSaved.toFixed(2)} total!</p>
                   </div>
                 )}
               </div>
@@ -482,7 +608,7 @@ export default function CheckoutPage() {
                   }`}
                 >
                   <CreditCard className="w-5 h-5" />
-                  {loading ? 'Processing...' : `Pay ₹${pricing.total.toFixed(2)}`}
+                  {loading ? 'Processing...' : `Pay ₹${displayTotal.toFixed(2)}`}
                 </button>
               </div>
             </div>

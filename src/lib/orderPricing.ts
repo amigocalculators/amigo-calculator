@@ -1,4 +1,4 @@
-import { CartItem, Promotion, FlashSale, ProductPromotion } from '@/types';
+import { CartItem, Promotion, FlashSale, ProductPromotion, CouponCode } from '@/types';
 import { buildFreeGiftItem, resolveOfferChoice, ResolvedOffer } from './promotions';
 import { isSoldOutDiscountActive, getSoldOutDiscountPrice } from './flashSale';
 import { getActiveProductPromotion, getProductPromotionPrice, getProductPromotionFreeUnits } from './productPromotions';
@@ -21,6 +21,9 @@ export interface OrderPricingResult {
   // Total ₹ value of free units granted by per-product buy/get promotions this order.
   productPromotionDiscount: number;
   flashDiscount: number;
+  couponDiscount: number;
+  // 'below_minimum' | 'not_combinable' | null (null = applied, or no coupon given)
+  couponRejectReason: string | null;
   discount: number;
   total: number;
   offerChoice: ResolvedOffer;
@@ -33,6 +36,7 @@ export interface OrderPricingInput {
   selectedOfferType: number | null;
   flashSale: FlashSale | null;
   flashEligible: boolean;
+  coupon?: CouponCode | null;
 }
 
 // The single source of truth for order totals — used identically by the cart/checkout
@@ -41,7 +45,7 @@ export interface OrderPricingInput {
 // cart *before* any per-product buy/get free-unit calc runs, so the same physical unit
 // can never absorb both discounts at once.
 export function calculateOrderPricing(input: OrderPricingInput): OrderPricingResult {
-  const { cart: rawCart, productPromotions, eligibleGiftPromotions, selectedOfferType, flashSale, flashEligible } = input;
+  const { cart: rawCart, productPromotions, eligibleGiftPromotions, selectedOfferType, flashSale, flashEligible, coupon = null } = input;
 
   // Second flash-sale phase: once claim slots are gone, an admin-configured %-off can
   // apply to every unit of that product for everyone until a configured end time — a
@@ -120,8 +124,27 @@ export function calculateOrderPricing(input: OrderPricingInput): OrderPricingRes
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const productPromotionDiscount = lines.reduce((sum, l) => sum + l.price * l.freeUnits, 0);
   const flashDiscount = flashLine ? flashLine.price - flashSale!.sale_price : 0;
-  const discount = productPromotionDiscount + flashDiscount;
-  const total = subtotal - discount;
+  const runningTotal = subtotal - productPromotionDiscount - flashDiscount;
 
-  return { lines, giftItem, subtotal, productPromotionDiscount, flashDiscount, discount, total, offerChoice };
+  // Coupon applies last, on top of (never instead of) the flash/product/gift discounts
+  // already resolved above — checked against the cart's pre-discount subtotal for the
+  // minimum, but computed off the already-discounted runningTotal.
+  let couponDiscount = 0;
+  let couponRejectReason: string | null = null;
+  if (coupon) {
+    if (subtotal < coupon.min_cart_total) {
+      couponRejectReason = 'below_minimum';
+    } else if (!coupon.combinable_with_other_offers && (flashDiscount > 0 || productPromotionDiscount > 0 || giftItem !== null)) {
+      couponRejectReason = 'not_combinable';
+    } else {
+      couponDiscount = coupon.discount_type === 'flat'
+        ? Math.min(coupon.discount_value, runningTotal)
+        : runningTotal * (coupon.discount_value / 100);
+    }
+  }
+
+  const discount = productPromotionDiscount + flashDiscount + couponDiscount;
+  const total = Math.max(0, subtotal - discount);
+
+  return { lines, giftItem, subtotal, productPromotionDiscount, flashDiscount, couponDiscount, couponRejectReason, discount, total, offerChoice };
 }
