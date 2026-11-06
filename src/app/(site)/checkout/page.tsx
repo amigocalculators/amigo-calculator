@@ -105,7 +105,15 @@ export default function CheckoutPage() {
       }
     } catch (err) {
       setAppliedCouponDiscount(0);
-      if (!silent) setCouponMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to validate coupon' });
+      // A failed silent re-check (network blip, server hiccup) must not leave the "Applied"
+      // badge showing with zero actual discount, permanently — couponAutoChecked latches
+      // true after this call regardless, so there's no retry. Treat it the same as an
+      // explicit rejection: drop the stale code rather than lie about it being applied.
+      if (silent) {
+        setCouponCode(null);
+      } else {
+        setCouponMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to validate coupon' });
+      }
     } finally {
       setCouponApplying(false);
     }

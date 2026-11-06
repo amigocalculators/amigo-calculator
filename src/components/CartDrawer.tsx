@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Minus, Plus, Trash2, Gift, Percent, Zap, Tag, ChevronDown, ChevronUp, Lock,
   ShoppingBag, CreditCard, Smartphone, Building2, Wallet, Check,
@@ -138,55 +138,80 @@ export default function CartDrawer() {
           </button>
         </div>
 
-        {cart.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-            <ShoppingBag className="w-16 h-16 text-gray-300 mb-4" />
-            <h3 className="text-xl font-bold mb-2">Your cart is empty</h3>
-            <p className="text-gray-500 mb-6">Looks like you haven&apos;t added anything yet.</p>
-            <button
-              onClick={() => { closeDrawer(); router.push('/products'); }}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Start Shopping
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex-1 overflow-y-auto">
-              {/* Tier progress bar */}
-              {tiers.length > 0 && (
-                <div className="m-4 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100">
-                  <p className="text-sm font-semibold text-gray-800 mb-3">
-                    {pricing.nextTier
-                      ? <>Add products worth <span className="text-blue-700">₹{(pricing.nextTier.min_cart_total - pricing.subtotal).toFixed(2)}</span> more to get Extra {describeDiscount(pricing.nextTier)}</>
-                      : <>You&apos;ve unlocked the best offer — Extra {describeDiscount(pricing.appliedTier!)}!</>}
-                  </p>
-                  <div className="h-2 rounded-full bg-gray-200 overflow-hidden mb-3">
-                    <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500" style={{ width: `${tierFillPercent}%` }} />
-                  </div>
-                  <div className="flex justify-between">
-                    {tiers.map((tier) => {
-                      const reached = pricing.subtotal >= tier.min_cart_total;
-                      return (
-                        <div key={tier.id} className="flex flex-col items-center gap-1 text-center w-1/3">
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center ${reached ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400'}`}>
-                            <Gift className="w-3.5 h-3.5" />
-                          </div>
-                          <span className={`text-[11px] font-medium ${reached ? 'text-blue-700' : 'text-gray-400'}`}>
-                            Extra {describeDiscount(tier)} on ₹{tier.min_cart_total}+
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {!pricing.nextTier && (
-                    <div className="mt-3 text-center text-xs font-bold text-blue-700 bg-blue-100 rounded-full py-1.5">
-                      🎉 Limited time offer applied!
+        <div className="flex-1 overflow-y-auto flex flex-col">
+          {/* Tier progress bar — shown even on an empty cart (matches the reference site),
+              so shoppers see the offer before adding anything, not only after. */}
+          {tiers.length > 0 && (
+            <div className="m-4 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 shrink-0">
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={pricing.nextTier?.id ?? 'maxed'}
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  transition={{ duration: 0.25 }}
+                  className="text-sm font-semibold text-gray-800 mb-3"
+                >
+                  {pricing.nextTier
+                    ? <>Add products worth <span className="text-blue-700">₹{(pricing.nextTier.min_cart_total - pricing.subtotal).toFixed(2)}</span> more to get Extra {describeDiscount(pricing.nextTier)}</>
+                    : <>You&apos;ve unlocked the best offer — Extra {describeDiscount(pricing.appliedTier!)}!</>}
+                </motion.p>
+              </AnimatePresence>
+              <div className="h-2 rounded-full bg-gray-200 overflow-hidden mb-3">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
+                  animate={{ width: `${tierFillPercent}%` }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                />
+              </div>
+              <div className="flex justify-between">
+                {tiers.map((tier) => {
+                  const reached = pricing.subtotal >= tier.min_cart_total;
+                  return (
+                    <div key={tier.id} className="flex flex-col items-center gap-1 text-center w-1/3">
+                      <motion.div
+                        animate={{ backgroundColor: reached ? '#2563eb' : '#e5e7eb', scale: reached ? [1, 1.25, 1] : 1 }}
+                        transition={{ duration: 0.4 }}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center ${reached ? 'text-white' : 'text-gray-400'}`}
+                      >
+                        <Gift className="w-3.5 h-3.5" />
+                      </motion.div>
+                      <span className={`text-[11px] font-medium transition-colors duration-300 ${reached ? 'text-blue-700' : 'text-gray-400'}`}>
+                        Extra {describeDiscount(tier)} on ₹{tier.min_cart_total}+
+                      </span>
                     </div>
-                  )}
-                </div>
-              )}
+                  );
+                })}
+              </div>
+              <AnimatePresence>
+                {!pricing.nextTier && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                    animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                    className="text-center text-xs font-bold text-blue-700 bg-blue-100 rounded-full py-1.5 overflow-hidden"
+                  >
+                    🎉 Limited time offer applied!
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
+          {cart.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+              <ShoppingBag className="w-16 h-16 text-gray-300 mb-4" />
+              <h3 className="text-xl font-bold mb-2">Your cart is empty</h3>
+              <p className="text-gray-500 mb-6">Looks like you haven&apos;t added anything yet.</p>
+              <button
+                onClick={() => { closeDrawer(); router.push('/products'); }}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Start Shopping
+              </button>
+            </div>
+          ) : (
+            <>
               {/* Line items */}
               <div className="px-4 space-y-3">
                 {displayCart.map((item) => {
@@ -351,39 +376,41 @@ export default function CartDrawer() {
                   View full cart →
                 </Link>
               </div>
-            </div>
+            </>
+          )}
+        </div>
 
-            {/* Footer */}
-            <div className="shrink-0 border-t bg-white">
-              <div className="px-5 pt-4 pb-2 space-y-1">
-                <div className="flex justify-between text-sm text-gray-500">
-                  <span>Subtotal</span>
-                  <span className="line-through">₹{pricing.subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-bold">Estimated Total</span>
-                  <span className="flex items-center gap-2">
-                    {percentOff > 0 && <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{percentOff}% OFF</span>}
-                    <span className="text-lg font-bold">₹{pricing.total.toFixed(2)}</span>
-                  </span>
-                </div>
+        {/* Footer — only once there's something to check out */}
+        {cart.length > 0 && (
+          <div className="shrink-0 border-t bg-white">
+            <div className="px-5 pt-4 pb-2 space-y-1">
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>Subtotal</span>
+                <span className="line-through">₹{pricing.subtotal.toFixed(2)}</span>
               </div>
-              <div className="px-5 pb-3">
-                <button
-                  onClick={handleProceedToPay}
-                  className="w-full bg-blue-600 text-white py-3.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  Proceed to Pay →
-                </button>
-                <div className="flex items-center justify-center gap-3 mt-2 text-gray-400">
-                  <CreditCard className="w-5 h-5" /><Smartphone className="w-5 h-5" /><Building2 className="w-5 h-5" /><Wallet className="w-5 h-5" />
-                </div>
-              </div>
-              <div className="bg-gray-50 text-center text-xs text-gray-500 py-2">
-                FREE SHIPPING on orders above ₹299
+              <div className="flex justify-between items-center">
+                <span className="font-bold">Estimated Total</span>
+                <span className="flex items-center gap-2">
+                  {percentOff > 0 && <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{percentOff}% OFF</span>}
+                  <span className="text-lg font-bold">₹{pricing.total.toFixed(2)}</span>
+                </span>
               </div>
             </div>
-          </>
+            <div className="px-5 pb-3">
+              <button
+                onClick={handleProceedToPay}
+                className="w-full bg-blue-600 text-white py-3.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+              >
+                Proceed to Pay →
+              </button>
+              <div className="flex items-center justify-center gap-3 mt-2 text-gray-400">
+                <CreditCard className="w-5 h-5" /><Smartphone className="w-5 h-5" /><Building2 className="w-5 h-5" /><Wallet className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="bg-gray-50 text-center text-xs text-gray-500 py-2">
+              FREE SHIPPING on orders above ₹299
+            </div>
+          </div>
         )}
       </motion.div>
     </>
