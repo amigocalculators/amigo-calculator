@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Minus, Plus, Trash2, Gift, Percent, Zap, Tag, ChevronDown, ChevronUp, Lock,
+  X, Minus, Plus, Trash2, Gift, Percent, Zap, Tag, Lock, Truck,
   ShoppingBag, CreditCard, Smartphone, Building2, Wallet, Check,
 } from 'lucide-react';
 import { Promotion, FlashSale, ProductPromotion, CouponCode } from '@/types';
@@ -15,6 +15,7 @@ import { getProductPromotions } from '@/lib/productPromotions';
 import { getActiveCoupons, describeDiscount, describeCouponRejection } from '@/lib/couponCodes';
 import { calculateOrderPricing } from '@/lib/orderPricing';
 import { getFlashSaleStatus, isFlashSaleLive } from '@/lib/flashSale';
+import { getSiteSettings } from '@/lib/siteSettings';
 import { createClient } from '@/lib/supabase/client';
 
 export default function CartDrawer() {
@@ -28,9 +29,9 @@ export default function CartDrawer() {
   const [tiers, setTiers] = useState<CouponCode[]>([]);
   const [manualCoupons, setManualCoupons] = useState<CouponCode[]>([]);
   const [showAllCoupons, setShowAllCoupons] = useState(false);
-  const [dealsExpanded, setDealsExpanded] = useState(false);
   const [applyingCode, setApplyingCode] = useState<string | null>(null);
   const [couponFeedback, setCouponFeedback] = useState<{ code: string; message: string } | null>(null);
+  const [freeDeliveryEnabled, setFreeDeliveryEnabled] = useState(true);
 
   useEffect(() => {
     getActiveGiftPromotions().then(setGiftPromotions);
@@ -43,6 +44,7 @@ export default function CartDrawer() {
       setTiers(coupons.filter((c) => c.auto_apply));
       setManualCoupons(coupons.filter((c) => !c.auto_apply));
     });
+    getSiteSettings().then((settings) => setFreeDeliveryEnabled(settings.free_delivery_enabled));
   }, []);
 
   // Scroll-lock + Escape-to-close while the drawer is open — ContactForm (the only other
@@ -144,18 +146,28 @@ export default function CartDrawer() {
           {tiers.length > 0 && (
             <div className="m-4 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 shrink-0">
               <AnimatePresence mode="wait">
-                <motion.p
-                  key={pricing.nextTier?.id ?? 'maxed'}
+                <motion.div
+                  key={`${pricing.appliedTier?.id ?? 'none'}-${pricing.nextTier?.id ?? 'maxed'}`}
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 6 }}
                   transition={{ duration: 0.25 }}
-                  className="text-sm font-semibold text-gray-800 mb-3"
+                  className="mb-3"
                 >
-                  {pricing.nextTier
-                    ? <>Add products worth <span className="text-blue-700">₹{(pricing.nextTier.min_cart_total - pricing.subtotal).toFixed(2)}</span> more to get Extra {describeDiscount(pricing.nextTier)}</>
-                    : <>You&apos;ve unlocked the best offer — Extra {describeDiscount(pricing.appliedTier!)}!</>}
-                </motion.p>
+                  {/* A tier can already be active while a higher one is still unlocked —
+                      without this line, that in-between state showed only the "add more
+                      for the next tier" prompt with no confirmation anything was applied. */}
+                  {pricing.appliedTier && pricing.nextTier && (
+                    <p className="text-xs font-bold text-green-700 mb-1.5 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Extra {describeDiscount(pricing.appliedTier)} already applied!
+                    </p>
+                  )}
+                  <p className="text-sm font-semibold text-gray-800">
+                    {pricing.nextTier
+                      ? <>Add products worth <span className="text-blue-700">₹{(pricing.nextTier.min_cart_total - pricing.subtotal).toFixed(2)}</span> more to get Extra {describeDiscount(pricing.nextTier)}</>
+                      : <>You&apos;ve unlocked the best offer — Extra {describeDiscount(pricing.appliedTier!)}!</>}
+                  </p>
+                </motion.div>
               </AnimatePresence>
               <div className="h-2 rounded-full bg-gray-200 overflow-hidden mb-3">
                 <motion.div
@@ -167,16 +179,20 @@ export default function CartDrawer() {
               <div className="flex justify-between">
                 {tiers.map((tier) => {
                   const reached = pricing.subtotal >= tier.min_cart_total;
+                  // Only one tier's discount is ever actually active at a time (the
+                  // highest one met) — a lower tier can be "reached" but superseded, so it
+                  // needs to read differently from the one that's actually applied.
+                  const isActive = pricing.appliedTier?.id === tier.id;
                   return (
                     <div key={tier.id} className="flex flex-col items-center gap-1 text-center w-1/3">
                       <motion.div
                         animate={{ backgroundColor: reached ? '#2563eb' : '#e5e7eb', scale: reached ? [1, 1.25, 1] : 1 }}
                         transition={{ duration: 0.4 }}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center ${reached ? 'text-white' : 'text-gray-400'}`}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center ${reached ? 'text-white' : 'text-gray-400'} ${isActive ? 'ring-2 ring-green-400 ring-offset-1' : ''}`}
                       >
-                        <Gift className="w-3.5 h-3.5" />
+                        {isActive ? <Check className="w-3.5 h-3.5" /> : <Gift className="w-3.5 h-3.5" />}
                       </motion.div>
-                      <span className={`text-[11px] font-medium transition-colors duration-300 ${reached ? 'text-blue-700' : 'text-gray-400'}`}>
+                      <span className={`text-[11px] font-medium transition-colors duration-300 ${isActive ? 'text-green-700' : reached ? 'text-blue-700' : 'text-gray-400'}`}>
                         Extra {describeDiscount(tier)} on ₹{tier.min_cart_total}+
                       </span>
                     </div>
@@ -341,35 +357,13 @@ export default function CartDrawer() {
                 </div>
               )}
 
-              {/* Steal the Deal / savings */}
-              <div className="mt-5 mx-4 mb-4 rounded-xl border border-gray-100 overflow-hidden">
-                <button onClick={() => setDealsExpanded((v) => !v)} className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors">
-                  <span className="text-sm font-semibold">🎉 Steal The Deal</span>
-                  {dealsExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
-                </button>
-                {pricing.discount > 0 && (
-                  <div className="px-4 py-2 bg-green-50 text-center text-sm font-medium text-green-700">
-                    Woohoo! ₹{pricing.discount.toFixed(2)} saved so far!
-                  </div>
-                )}
-                {dealsExpanded && (
-                  <div className="px-4 py-3 space-y-2 text-sm">
-                    {pricing.flashDiscount > 0 && (
-                      <div className="flex justify-between text-red-600"><span className="flex items-center gap-1"><Zap className="w-3.5 h-3.5" />Flash Sale</span><span>-₹{pricing.flashDiscount.toFixed(2)}</span></div>
-                    )}
-                    {pricing.productPromotionDiscount > 0 && (
-                      <div className="flex justify-between text-green-600"><span className="flex items-center gap-1"><Percent className="w-3.5 h-3.5" />Special Offer</span><span>-₹{pricing.productPromotionDiscount.toFixed(2)}</span></div>
-                    )}
-                    {pricing.appliedTier && pricing.tierDiscount > 0 && (
-                      <div className="flex justify-between text-blue-600"><span className="flex items-center gap-1"><Percent className="w-3.5 h-3.5" />Extra {describeDiscount(pricing.appliedTier)}</span><span>-₹{pricing.tierDiscount.toFixed(2)}</span></div>
-                    )}
-                    {pricing.couponDiscount > 0 && (
-                      <div className="flex justify-between text-green-600"><span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" />Coupon ({couponCode})</span><span>-₹{pricing.couponDiscount.toFixed(2)}</span></div>
-                    )}
-                    {pricing.discount === 0 && <p className="text-gray-500">Add more to unlock savings on this order.</p>}
-                  </div>
-                )}
-              </div>
+              {/* Savings banner — the line-by-line breakdown lives in the footer below now,
+                  so this is just the headline total, not a duplicate of it. */}
+              {pricing.discount > 0 && (
+                <div className="mt-5 mx-4 mb-4 rounded-xl bg-green-50 border border-green-100 px-4 py-3 text-center text-sm font-medium text-green-700">
+                  🎉 Woohoo! ₹{pricing.discount.toFixed(2)} saved so far!
+                </div>
+              )}
 
               <div className="px-4 pb-2">
                 <Link href="/cart" onClick={closeDrawer} className="text-xs text-blue-600 hover:underline font-medium">
@@ -386,9 +380,39 @@ export default function CartDrawer() {
             <div className="px-5 pt-4 pb-2 space-y-1">
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Subtotal</span>
-                <span className="line-through">₹{pricing.subtotal.toFixed(2)}</span>
+                <span className={pricing.discount > 0 ? 'line-through' : ''}>₹{pricing.subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center">
+              {pricing.flashDiscount > 0 && (
+                <div className="flex justify-between text-sm text-red-600 font-medium">
+                  <span className="flex items-center gap-1"><Zap className="w-3.5 h-3.5" />Flash Sale</span>
+                  <span>-₹{pricing.flashDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              {pricing.productPromotionDiscount > 0 && (
+                <div className="flex justify-between text-sm text-green-600 font-medium">
+                  <span className="flex items-center gap-1"><Percent className="w-3.5 h-3.5" />Special Offer</span>
+                  <span>-₹{pricing.productPromotionDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              {pricing.appliedTier && pricing.tierDiscount > 0 && (
+                <div className="flex justify-between text-sm text-blue-600 font-medium">
+                  <span className="flex items-center gap-1"><Percent className="w-3.5 h-3.5" />Extra {describeDiscount(pricing.appliedTier)}</span>
+                  <span>-₹{pricing.tierDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              {pricing.couponDiscount > 0 && (
+                <div className="flex justify-between text-sm text-green-600 font-medium">
+                  <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" />Coupon ({couponCode})</span>
+                  <span>-₹{pricing.couponDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              {freeDeliveryEnabled && (
+                <div className="flex justify-between text-sm text-gray-500">
+                  <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5" />Delivery</span>
+                  <span className="text-green-600 font-semibold">FREE</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-1">
                 <span className="font-bold">Estimated Total</span>
                 <span className="flex items-center gap-2">
                   {percentOff > 0 && <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{percentOff}% OFF</span>}
@@ -406,9 +430,6 @@ export default function CartDrawer() {
               <div className="flex items-center justify-center gap-3 mt-2 text-gray-400">
                 <CreditCard className="w-5 h-5" /><Smartphone className="w-5 h-5" /><Building2 className="w-5 h-5" /><Wallet className="w-5 h-5" />
               </div>
-            </div>
-            <div className="bg-gray-50 text-center text-xs text-gray-500 py-2">
-              FREE SHIPPING on orders above ₹299
             </div>
           </div>
         )}

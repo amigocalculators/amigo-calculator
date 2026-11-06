@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, Package, Calendar, Megaphone, Zap, Briefcase, Users, LogOut, Ticket } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Package, Calendar, Megaphone, Zap, Briefcase, Users, LogOut, Ticket, Settings } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 const navItems = [
@@ -15,6 +15,7 @@ const navItems = [
   { label: 'Flash Sale', href: '/admin/flash-sale', icon: Zap },
   { label: 'Bulk Orders', href: '/admin/bulk-orders', icon: Briefcase },
   { label: 'Users', href: '/admin/users', icon: Users },
+  { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
 export default function AdminSidebar({ userEmail }: { userEmail: string }) {

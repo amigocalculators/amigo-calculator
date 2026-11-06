@@ -8,8 +8,9 @@ import { getProductPromotions } from '@/lib/productPromotions';
 import { getActiveCoupons, describeDiscount } from '@/lib/couponCodes';
 import { calculateOrderPricing } from '@/lib/orderPricing';
 import { getFlashSaleStatus, isFlashSaleLive } from '@/lib/flashSale';
+import { getSiteSettings } from '@/lib/siteSettings';
 import { createClient } from '@/lib/supabase/client';
-import { Minus, Plus, Trash2, Gift, Percent, Zap } from 'lucide-react';
+import { Minus, Plus, Trash2, Gift, Percent, Zap, Truck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function CartPage() {
@@ -20,6 +21,7 @@ export default function CartPage() {
   const [flashSale, setFlashSale] = useState<FlashSale | null>(null);
   const [flashAlreadyClaimed, setFlashAlreadyClaimed] = useState(false);
   const [tiers, setTiers] = useState<CouponCode[]>([]);
+  const [freeDeliveryEnabled, setFreeDeliveryEnabled] = useState(true);
 
   useEffect(() => {
     getActiveGiftPromotions().then(setGiftPromotions);
@@ -29,6 +31,7 @@ export default function CartPage() {
       setFlashAlreadyClaimed(alreadyClaimed);
     });
     getActiveCoupons().then((coupons) => setTiers(coupons.filter((c) => c.auto_apply)));
+    getSiteSettings().then((settings) => setFreeDeliveryEnabled(settings.free_delivery_enabled));
   }, []);
 
   const eligibleGifts = cart.length > 0 ? giftPromotions : [];
@@ -247,6 +250,12 @@ export default function CartPage() {
                   <div className="flex justify-between text-green-600 font-semibold">
                     <span className="flex items-center gap-1"><Gift className="w-4 h-4" />{pricing.giftItem.quantity > 1 ? `${pricing.giftItem.quantity} × ` : ''}{pricing.giftItem.name}</span>
                     <span>FREE</span>
+                  </div>
+                )}
+                {freeDeliveryEnabled && (
+                  <div className="flex justify-between text-gray-600">
+                    <span className="flex items-center gap-1"><Truck className="w-4 h-4" />Delivery</span>
+                    <span className="text-green-600 font-semibold">FREE</span>
                   </div>
                 )}
                 <div className="border-t pt-4">

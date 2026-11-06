@@ -153,6 +153,13 @@ export interface AdSlide {
   flashProduct?: Product;
 }
 
+// Singleton sitewide settings row (always id=1) — see supabase/migration_019_site_settings.sql.
+export interface SiteSettings {
+  id: number;
+  free_delivery_enabled: boolean;
+  updated_at: string;
+}
+
 export interface FlashSaleClaim {
   id: number;
   flash_sale_id: number;

@@ -8,6 +8,7 @@ import { getProductPromotions } from '@/lib/productPromotions';
 import { getActiveCoupons, describeCouponRejection, describeDiscount } from '@/lib/couponCodes';
 import { calculateOrderPricing } from '@/lib/orderPricing';
 import { getFlashSaleStatus, isFlashSaleLive } from '@/lib/flashSale';
+import { getSiteSettings } from '@/lib/siteSettings';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { CreditCard, MapPin, User, Shield, Truck, Package, Gift, Percent, Zap, Tag } from 'lucide-react';
@@ -51,6 +52,7 @@ export default function CheckoutPage() {
   const [flashSale, setFlashSale] = useState<FlashSale | null>(null);
   const [flashAlreadyClaimed, setFlashAlreadyClaimed] = useState(false);
   const [tiers, setTiers] = useState<CouponCode[]>([]);
+  const [freeDeliveryEnabled, setFreeDeliveryEnabled] = useState(true);
   const [customerDetails, setCustomerDetails] = useState({
     name: '', email: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
@@ -127,6 +129,7 @@ export default function CheckoutPage() {
       setFlashAlreadyClaimed(alreadyClaimed);
     });
     getActiveCoupons().then((coupons) => setTiers(coupons.filter((c) => c.auto_apply)));
+    getSiteSettings().then((settings) => setFreeDeliveryEnabled(settings.free_delivery_enabled));
   }, []);
 
   // A coupon applied on an earlier visit is persisted in cartStore — re-check it once
@@ -603,6 +606,12 @@ export default function CheckoutPage() {
                     <span>-₹{couponDiscount.toFixed(2)}</span>
                   </div>
                 )}
+                {freeDeliveryEnabled && (
+                  <div className="flex justify-between text-gray-600">
+                    <span className="flex items-center gap-1"><Truck className="w-4 h-4" />Delivery</span>
+                    <span className="text-green-600 font-semibold">FREE</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-lg font-bold"><span>Total</span><span>₹{displayTotal.toFixed(2)}</span></div>
                 {totalSaved > 0 && (
                   <div className="text-center">
@@ -616,10 +625,12 @@ export default function CheckoutPage() {
                   <div className="flex items-center gap-2 text-blue-700 mb-2"><Shield className="w-5 h-5" /><span className="font-medium">Secure Payment</span></div>
                   <p className="text-sm text-blue-600">Your payment information is encrypted and secure</p>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 text-green-700 mb-2"><Truck className="w-5 h-5" /><span className="font-medium">Free Shipping</span></div>
-                  <p className="text-sm text-green-600">Estimated delivery: 3-5 business days</p>
-                </div>
+                {freeDeliveryEnabled && (
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="flex items-center gap-2 text-green-700 mb-2"><Truck className="w-5 h-5" /><span className="font-medium">Free Shipping</span></div>
+                    <p className="text-sm text-green-600">Estimated delivery: 3-5 business days</p>
+                  </div>
+                )}
                 <button
                   onClick={handleCheckout}
                   disabled={!isPersonalInfoComplete() || loading}
