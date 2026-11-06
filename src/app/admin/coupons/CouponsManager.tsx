@@ -238,7 +238,7 @@ export default function CouponsManager({ initialCoupons }: { initialCoupons: Cou
                 <input type="checkbox" id="autoApply" checked={autoApply} onChange={(e) => setAutoApply(e.target.checked)} className="w-4 h-4 mt-0.5" />
                 <label htmlFor="autoApply" className="text-sm text-gray-700">
                   <span className="font-medium flex items-center gap-1"><Sparkles className="w-3.5 h-3.5 text-purple-600" />Auto-apply tier</span>
-                  <span className="block text-xs text-gray-500 mt-0.5">No code needed — applies automatically once the cart subtotal crosses the minimum below. Shown in the cart drawer&apos;s progress bar instead of the coupon carousel, and always applies regardless of the &quot;Combinable&quot; setting.</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">No code to type, and shoppers can&apos;t pick it — it applies automatically once the cart subtotal crosses the minimum below. Shown in the cart drawer&apos;s progress bar instead of the coupon carousel, always applies regardless of the &quot;Combinable&quot; setting, and its code <strong>is</strong> shown to the customer once applied (in the drawer and at checkout) — pick something presentable, not an internal id.</span>
                 </label>
               </div>
 
@@ -247,7 +247,7 @@ export default function CouponsManager({ initialCoupons }: { initialCoupons: Cou
                 <input
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder={autoApply ? 'e.g. TIER_10_OFF — internal only, never shown to customers' : 'e.g. WELCOME10'}
+                  placeholder={autoApply ? 'e.g. EXTRA10 — shown to the customer once applied' : 'e.g. WELCOME10'}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>

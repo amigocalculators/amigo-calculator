@@ -461,6 +461,20 @@ export default function CheckoutPage() {
                 </div>
               ) : null}
 
+              {/* Auto-apply tiers are never something the shopper picks — no button, no
+                  selector — but they should still be able to see exactly which offer got
+                  applied for them, by its code, not just a generic discount line below. */}
+              {pricing.appliedTier && (
+                <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <p className="text-sm font-semibold text-blue-700 flex items-center gap-2">
+                    <Percent className="w-4 h-4" />Offer auto-applied
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    &quot;{pricing.appliedTier.code}&quot; — Extra {describeDiscount(pricing.appliedTier)}, based on your cart total.
+                  </p>
+                </div>
+              )}
+
               <div className="mb-6 border border-gray-200 rounded-xl p-4">
                 <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <Tag className="w-4 h-4" />Have a coupon code?
@@ -590,7 +604,7 @@ export default function CheckoutPage() {
                 )}
                 {pricing.appliedTier && pricing.tierDiscount > 0 && (
                   <div className="flex justify-between text-green-600 font-semibold">
-                    <span className="flex items-center gap-1"><Percent className="w-4 h-4" />Extra {describeDiscount(pricing.appliedTier)}</span>
+                    <span className="flex items-center gap-1"><Percent className="w-4 h-4" />{pricing.appliedTier.code}</span>
                     <span>-₹{pricing.tierDiscount.toFixed(2)}</span>
                   </div>
                 )}

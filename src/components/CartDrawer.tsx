@@ -154,18 +154,19 @@ export default function CartDrawer() {
                   transition={{ duration: 0.25 }}
                   className="mb-3"
                 >
-                  {/* A tier can already be active while a higher one is still unlocked —
-                      without this line, that in-between state showed only the "add more
-                      for the next tier" prompt with no confirmation anything was applied. */}
+                  {/* Auto-apply tiers are never a customer choice — there's no button or
+                      selector for this, it just activates once the subtotal qualifies.
+                      But the shopper should still be able to see exactly which offer was
+                      picked for them, by its code, not just a generic "Extra X OFF". */}
                   {pricing.appliedTier && pricing.nextTier && (
                     <p className="text-xs font-bold text-green-700 mb-1.5 flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5" /> Extra {describeDiscount(pricing.appliedTier)} already applied!
+                      <Check className="w-3.5 h-3.5" /> &quot;{pricing.appliedTier.code}&quot; applied — Extra {describeDiscount(pricing.appliedTier)}!
                     </p>
                   )}
                   <p className="text-sm font-semibold text-gray-800">
                     {pricing.nextTier
                       ? <>Add products worth <span className="text-blue-700">₹{(pricing.nextTier.min_cart_total - pricing.subtotal).toFixed(2)}</span> more to get Extra {describeDiscount(pricing.nextTier)}</>
-                      : <>You&apos;ve unlocked the best offer — Extra {describeDiscount(pricing.appliedTier!)}!</>}
+                      : <>You&apos;ve unlocked the best offer — &quot;{pricing.appliedTier!.code}&quot; (Extra {describeDiscount(pricing.appliedTier!)})!</>}
                   </p>
                 </motion.div>
               </AnimatePresence>
@@ -396,7 +397,7 @@ export default function CartDrawer() {
               )}
               {pricing.appliedTier && pricing.tierDiscount > 0 && (
                 <div className="flex justify-between text-sm text-blue-600 font-medium">
-                  <span className="flex items-center gap-1"><Percent className="w-3.5 h-3.5" />Extra {describeDiscount(pricing.appliedTier)}</span>
+                  <span className="flex items-center gap-1"><Percent className="w-3.5 h-3.5" />{pricing.appliedTier.code}</span>
                   <span>-₹{pricing.tierDiscount.toFixed(2)}</span>
                 </div>
               )}

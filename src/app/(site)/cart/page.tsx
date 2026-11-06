@@ -5,7 +5,7 @@ import { Promotion, FlashSale, ProductPromotion, CouponCode } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { getActiveGiftPromotions, isFreeGiftItem, buildFreeGiftItem } from '@/lib/promotions';
 import { getProductPromotions } from '@/lib/productPromotions';
-import { getActiveCoupons, describeDiscount } from '@/lib/couponCodes';
+import { getActiveCoupons } from '@/lib/couponCodes';
 import { calculateOrderPricing } from '@/lib/orderPricing';
 import { getFlashSaleStatus, isFlashSaleLive } from '@/lib/flashSale';
 import { getSiteSettings } from '@/lib/siteSettings';
@@ -242,7 +242,7 @@ export default function CartPage() {
                 )}
                 {pricing.appliedTier && pricing.tierDiscount > 0 && (
                   <div className="flex justify-between text-green-600 font-semibold">
-                    <span className="flex items-center gap-1"><Percent className="w-4 h-4" />Extra {describeDiscount(pricing.appliedTier)}</span>
+                    <span className="flex items-center gap-1"><Percent className="w-4 h-4" />{pricing.appliedTier.code}</span>
                     <span>-₹{pricing.tierDiscount.toFixed(2)}</span>
                   </div>
                 )}
