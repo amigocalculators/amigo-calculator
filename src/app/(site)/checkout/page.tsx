@@ -475,42 +475,48 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              <div className="mb-6 border border-gray-200 rounded-xl p-4">
-                <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Tag className="w-4 h-4" />Have a coupon code?
-                </p>
-                {couponCode ? (
-                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                    <span className="text-sm font-medium text-green-700">Applied: {couponCode}</span>
-                    <button type="button" onClick={handleRemoveCoupon} className="text-xs text-gray-500 hover:text-gray-700 underline">
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={couponInput}
-                      onChange={(e) => setCouponInput(e.target.value)}
-                      placeholder="Enter code"
-                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => applyCoupon(couponInput)}
-                      disabled={couponApplying || !couponInput.trim()}
-                      className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                    >
-                      {couponApplying ? 'Applying...' : 'Apply'}
-                    </button>
-                  </div>
-                )}
-                {couponMessage && (
-                  <p className={`text-sm mt-2 ${couponMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                    {couponMessage.text}
+              {/* Hidden whenever a tier is already active — a tier and a coupon never
+                  stack (see orderPricing.ts), so a code entry box here would just lead to
+                  a guaranteed "can't combine" rejection. The blue box above already
+                  explains what's applied instead. */}
+              {!pricing.appliedTier && (
+                <div className="mb-6 border border-gray-200 rounded-xl p-4">
+                  <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Tag className="w-4 h-4" />Have a coupon code?
                   </p>
-                )}
-              </div>
+                  {couponCode ? (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      <span className="text-sm font-medium text-green-700">Applied: {couponCode}</span>
+                      <button type="button" onClick={handleRemoveCoupon} className="text-xs text-gray-500 hover:text-gray-700 underline">
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value)}
+                        placeholder="Enter code"
+                        className="flex-1 px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => applyCoupon(couponInput)}
+                        disabled={couponApplying || !couponInput.trim()}
+                        className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {couponApplying ? 'Applying...' : 'Apply'}
+                      </button>
+                    </div>
+                  )}
+                  {couponMessage && (
+                    <p className={`text-sm mt-2 ${couponMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                      {couponMessage.text}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-4 mb-6">
                 {displayCart.map((item) => {

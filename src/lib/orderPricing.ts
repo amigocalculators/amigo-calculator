@@ -156,18 +156,21 @@ export function calculateOrderPricing(input: OrderPricingInput): OrderPricingRes
       : runningTotal * (appliedTier.discount_value / 100))
     : 0;
 
-  // Coupon applies last, on top of (never instead of) the flash/product/gift/tier
-  // discounts already resolved above — checked against the cart's pre-discount subtotal
-  // for the minimum, but computed off the already-discounted runningTotal. A coupon and
-  // an active tier are summed, not compounded (two independent "extra N% off the same
-  // running total" discounts), so the displayed "Extra N% OFF" always matches what's
-  // actually charged.
+  // Coupon applies on top of (never instead of) the flash/product/gift discounts already
+  // resolved above — checked against the cart's pre-discount subtotal for the minimum,
+  // but computed off the already-discounted runningTotal. A tier and a coupon never both
+  // apply, though — only one discount is ever active on an order at a time.
   let couponDiscount = 0;
   let couponRejectReason: string | null = null;
   if (coupon) {
     if (subtotal < coupon.min_cart_total) {
       couponRejectReason = 'below_minimum';
-    } else if (!coupon.combinable_with_other_offers && (flashDiscount > 0 || productPromotionDiscount > 0 || giftItem !== null || tierDiscount > 0)) {
+    } else if (tierDiscount > 0) {
+      // Tiers and manual coupons never stack, period — unlike flash/product-promo/gift
+      // combinability below, this isn't gated by the coupon's own "Combinable" checkbox.
+      // Only one discount is ever active at a time.
+      couponRejectReason = 'not_combinable';
+    } else if (!coupon.combinable_with_other_offers && (flashDiscount > 0 || productPromotionDiscount > 0 || giftItem !== null)) {
       couponRejectReason = 'not_combinable';
     } else {
       couponDiscount = coupon.discount_type === 'flat'

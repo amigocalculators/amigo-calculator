@@ -317,7 +317,7 @@ export default function CouponsManager({ initialCoupons }: { initialCoupons: Cou
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="combinable" checked={combinable} onChange={(e) => setCombinable(e.target.checked)} className="w-4 h-4" />
                   <label htmlFor="combinable" className="text-sm font-medium text-gray-700">
-                    Combinable with other offers (flash sale / product promotion / free gift / auto-apply tier)
+                    Combinable with other offers (flash sale / product promotion / free gift) — never with an auto-apply tier, which always takes priority over any coupon
                   </label>
                 </div>
               )}

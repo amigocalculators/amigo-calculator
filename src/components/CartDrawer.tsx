@@ -288,8 +288,10 @@ export default function CartDrawer() {
                 })}
               </div>
 
-              {/* Available Coupons */}
-              {manualCoupons.length > 0 && (
+              {/* Available Coupons — hidden whenever a tier is already active, since a
+                  tier and a coupon never stack (see orderPricing.ts); the progress bar
+                  above already shows which offer applied. */}
+              {!pricing.appliedTier && manualCoupons.length > 0 && (
                 <div className="mt-5 px-4">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-semibold flex items-center gap-1.5"><Tag className="w-4 h-4" />Available Coupons</p>
