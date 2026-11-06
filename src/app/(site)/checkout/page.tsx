@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Promotion, FlashSale, ProductPromotion } from '@/types';
+import { Promotion, FlashSale, ProductPromotion, CouponCode } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { getActiveGiftPromotions, buildFreeGiftItem, isFreeGiftItem } from '@/lib/promotions';
 import { getProductPromotions } from '@/lib/productPromotions';
+import { getActiveCoupons, describeCouponRejection, describeDiscount } from '@/lib/couponCodes';
 import { calculateOrderPricing } from '@/lib/orderPricing';
 import { getFlashSaleStatus, isFlashSaleLive } from '@/lib/flashSale';
 import { createClient } from '@/lib/supabase/client';
@@ -40,16 +41,6 @@ const indianStates = [
   'Delhi','Jammu and Kashmir','Ladakh','Lakshadweep','Puducherry',
 ];
 
-function describeCouponRejection(data: { reason?: string; minCartTotal?: number }): string {
-  if (data.reason === 'below_minimum') {
-    return `This coupon needs a cart total of at least ₹${(data.minCartTotal ?? 0).toFixed(2)}.`;
-  }
-  if (data.reason === 'not_combinable') {
-    return "This coupon can't be combined with your current offer.";
-  }
-  return 'This coupon is invalid or has expired.';
-}
-
 export default function CheckoutPage() {
   const { cart, clearCart, selectedOfferType, setSelectedOfferType, couponCode, setCouponCode } = useCartStore();
   const router = useRouter();
@@ -59,6 +50,7 @@ export default function CheckoutPage() {
   const [productPromotions, setProductPromotions] = useState<ProductPromotion[]>([]);
   const [flashSale, setFlashSale] = useState<FlashSale | null>(null);
   const [flashAlreadyClaimed, setFlashAlreadyClaimed] = useState(false);
+  const [tiers, setTiers] = useState<CouponCode[]>([]);
   const [customerDetails, setCustomerDetails] = useState({
     name: '', email: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
@@ -75,6 +67,50 @@ export default function CheckoutPage() {
   // burst via a changed React `key`, even if the previous one hasn't finished yet.
   const [celebrate, setCelebrate] = useState(0);
 
+  // `silent`: used for the auto re-check of a persisted coupon on load — stays quiet on
+  // failure (just drops the stale code) instead of surfacing an error the user never asked for.
+  // Defined before the effects below (rather than down with the other handlers) because
+  // the coupon auto-check effect calls it — it must already be initialized by the time
+  // that effect's closure is created, including on a render that early-returns below
+  // (the !authChecked loading state) before ever reaching a later definition.
+  const applyCoupon = async (rawCode: string, { silent = false }: { silent?: boolean } = {}) => {
+    const code = rawCode.trim();
+    if (!code) return;
+    setCouponApplying(true);
+    if (!silent) setCouponMessage(null);
+    try {
+      const res = await fetch('/api/coupon/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, cart: cart.map((item) => ({ id: item.id, quantity: item.quantity })) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to validate coupon');
+
+      if (data.valid) {
+        setCouponCode(code.toUpperCase());
+        setAppliedCouponDiscount(data.discount);
+        setCouponInput('');
+        setCouponMessage({ type: 'success', text: `Coupon applied! You saved ₹${data.discount.toFixed(2)}.` });
+        // Only for a real click — the silent re-check of a persisted coupon on page load
+        // shouldn't surprise the shopper with confetti they didn't ask for.
+        if (!silent) setCelebrate((n) => n + 1);
+      } else {
+        setAppliedCouponDiscount(0);
+        if (silent) {
+          setCouponCode(null);
+        } else {
+          setCouponMessage({ type: 'error', text: describeCouponRejection(data) });
+        }
+      }
+    } catch (err) {
+      setAppliedCouponDiscount(0);
+      if (!silent) setCouponMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to validate coupon' });
+    } finally {
+      setCouponApplying(false);
+    }
+  };
+
   useEffect(() => {
     getActiveGiftPromotions().then(setGiftPromotions);
     getProductPromotions().then(setProductPromotions);
@@ -82,6 +118,7 @@ export default function CheckoutPage() {
       setFlashSale(sale);
       setFlashAlreadyClaimed(alreadyClaimed);
     });
+    getActiveCoupons().then((coupons) => setTiers(coupons.filter((c) => c.auto_apply)));
   }, []);
 
   // A coupon applied on an earlier visit is persisted in cartStore — re-check it once
@@ -129,46 +166,6 @@ export default function CheckoutPage() {
     setCustomerDetails((prev) => ({ ...prev, [name]: value }));
   };
 
-  // `silent`: used for the auto re-check of a persisted coupon on load — stays quiet on
-  // failure (just drops the stale code) instead of surfacing an error the user never asked for.
-  const applyCoupon = async (rawCode: string, { silent = false }: { silent?: boolean } = {}) => {
-    const code = rawCode.trim();
-    if (!code) return;
-    setCouponApplying(true);
-    if (!silent) setCouponMessage(null);
-    try {
-      const res = await fetch('/api/coupon/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, cart: cart.map((item) => ({ id: item.id, quantity: item.quantity })) }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Failed to validate coupon');
-
-      if (data.valid) {
-        setCouponCode(code.toUpperCase());
-        setAppliedCouponDiscount(data.discount);
-        setCouponInput('');
-        setCouponMessage({ type: 'success', text: `Coupon applied! You saved ₹${data.discount.toFixed(2)}.` });
-        // Only for a real click — the silent re-check of a persisted coupon on page load
-        // shouldn't surprise the shopper with confetti they didn't ask for.
-        if (!silent) setCelebrate((n) => n + 1);
-      } else {
-        setAppliedCouponDiscount(0);
-        if (silent) {
-          setCouponCode(null);
-        } else {
-          setCouponMessage({ type: 'error', text: describeCouponRejection(data) });
-        }
-      }
-    } catch (err) {
-      setAppliedCouponDiscount(0);
-      if (!silent) setCouponMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to validate coupon' });
-    } finally {
-      setCouponApplying(false);
-    }
-  };
-
   const handleRemoveCoupon = () => {
     setCouponCode(null);
     setAppliedCouponDiscount(0);
@@ -192,6 +189,7 @@ export default function CheckoutPage() {
     selectedOfferType,
     flashSale,
     flashEligible,
+    tiers,
   });
 
   const optionsCount = eligibleGifts.length;
@@ -577,6 +575,12 @@ export default function CheckoutPage() {
                   <div className="flex justify-between text-green-600 font-semibold">
                     <span className="flex items-center gap-1"><Percent className="w-4 h-4" />Special Offer</span>
                     <span>-₹{pricing.productPromotionDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                {pricing.appliedTier && pricing.tierDiscount > 0 && (
+                  <div className="flex justify-between text-green-600 font-semibold">
+                    <span className="flex items-center gap-1"><Percent className="w-4 h-4" />Extra {describeDiscount(pricing.appliedTier)}</span>
+                    <span>-₹{pricing.tierDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 {pricing.giftItem && (

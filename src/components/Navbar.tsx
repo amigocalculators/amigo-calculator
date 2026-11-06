@@ -7,7 +7,7 @@ import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 
 const Navbar = () => {
-  const { cart } = useCartStore();
+  const { cart, openDrawer } = useCartStore();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
 
@@ -51,26 +51,26 @@ const Navbar = () => {
               <User className="w-5 h-5" />
               <span className="text-base">{isLoggedIn ? 'My Orders' : 'Login'}</span>
             </Link>
-            <Link href="/cart" className="text-gray-600 hover:text-gray-900 relative">
+            <button onClick={openDrawer} className="text-gray-600 hover:text-gray-900 relative">
               <ShoppingCart className="w-6 h-6" />
               {cart.length > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
                   {cart.reduce((acc, item) => acc + item.quantity, 0)}
                 </span>
               )}
-            </Link>
+            </button>
           </div>
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-6">
-            <Link href="/cart" className="text-gray-600 hover:text-gray-900 relative">
+            <button onClick={openDrawer} className="text-gray-600 hover:text-gray-900 relative">
               <ShoppingCart className="w-6 h-6" />
               {cart.length > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
                   {cart.reduce((acc, item) => acc + item.quantity, 0)}
                 </span>
               )}
-            </Link>
+            </button>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-gray-600 hover:text-gray-900"

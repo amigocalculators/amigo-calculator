@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Promotion, FlashSale, ProductPromotion } from '@/types';
+import { Promotion, FlashSale, ProductPromotion, CouponCode } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { getActiveGiftPromotions, isFreeGiftItem, buildFreeGiftItem } from '@/lib/promotions';
 import { getProductPromotions } from '@/lib/productPromotions';
+import { getActiveCoupons, describeDiscount } from '@/lib/couponCodes';
 import { calculateOrderPricing } from '@/lib/orderPricing';
 import { getFlashSaleStatus, isFlashSaleLive } from '@/lib/flashSale';
 import { createClient } from '@/lib/supabase/client';
@@ -18,6 +19,7 @@ export default function CartPage() {
   const [productPromotions, setProductPromotions] = useState<ProductPromotion[]>([]);
   const [flashSale, setFlashSale] = useState<FlashSale | null>(null);
   const [flashAlreadyClaimed, setFlashAlreadyClaimed] = useState(false);
+  const [tiers, setTiers] = useState<CouponCode[]>([]);
 
   useEffect(() => {
     getActiveGiftPromotions().then(setGiftPromotions);
@@ -26,6 +28,7 @@ export default function CartPage() {
       setFlashSale(sale);
       setFlashAlreadyClaimed(alreadyClaimed);
     });
+    getActiveCoupons().then((coupons) => setTiers(coupons.filter((c) => c.auto_apply)));
   }, []);
 
   const eligibleGifts = cart.length > 0 ? giftPromotions : [];
@@ -38,6 +41,7 @@ export default function CartPage() {
     selectedOfferType,
     flashSale,
     flashEligible,
+    tiers,
   });
 
   const giftPreviews = new Map(eligibleGifts.map((p) => [p.id, buildFreeGiftItem(p, cart)]));
@@ -231,6 +235,12 @@ export default function CartPage() {
                   <div className="flex justify-between text-green-600 font-semibold">
                     <span className="flex items-center gap-1"><Percent className="w-4 h-4" />Special Offer</span>
                     <span>-₹{pricing.productPromotionDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                {pricing.appliedTier && pricing.tierDiscount > 0 && (
+                  <div className="flex justify-between text-green-600 font-semibold">
+                    <span className="flex items-center gap-1"><Percent className="w-4 h-4" />Extra {describeDiscount(pricing.appliedTier)}</span>
+                    <span>-₹{pricing.tierDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 {pricing.giftItem && (

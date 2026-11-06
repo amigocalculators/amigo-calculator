@@ -4,7 +4,7 @@ import { getActiveGiftPromotions } from '@/lib/promotions';
 import { getProductPromotions } from '@/lib/productPromotions';
 import { calculateOrderPricing } from '@/lib/orderPricing';
 import { isFlashSaleLive } from '@/lib/flashSale';
-import { getCouponByCode } from '@/lib/couponCodes';
+import { getCouponByCode, getActiveCoupons } from '@/lib/couponCodes';
 import { CartItem, FlashSale } from '@/types';
 
 // Preview-only: re-derives pricing server-side exactly like /api/checkout does, so the
@@ -40,12 +40,14 @@ export async function POST(req: NextRequest) {
       return { ...product, quantity: line.quantity };
     });
 
-    const [productPromotions, eligibleGiftPromotions, { data: flashSaleRow }] = await Promise.all([
+    const [productPromotions, eligibleGiftPromotions, { data: flashSaleRow }, activeCoupons] = await Promise.all([
       getProductPromotions(supabase, ids),
       getActiveGiftPromotions(supabase),
       supabase.from('flash_sales').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      getActiveCoupons(supabase),
     ]);
     const flashSale = (flashSaleRow as FlashSale | null) ?? null;
+    const tiers = activeCoupons.filter((c) => c.auto_apply);
 
     // This is a preview, not a checkout — it must never claim a flash-sale slot (that's
     // /api/checkout's job, atomically, at charge time) and login isn't required here. So
@@ -73,6 +75,7 @@ export async function POST(req: NextRequest) {
       flashSale,
       flashEligible,
       coupon,
+      tiers,
     });
 
     if (pricing.couponRejectReason) {

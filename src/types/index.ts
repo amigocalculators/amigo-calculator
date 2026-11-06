@@ -104,8 +104,14 @@ export interface CouponCode {
   discount_value: number;
   min_cart_total: number;
   // If false, this coupon is rejected when the cart already has a flash-sale discount,
-  // a product promotion discount, or a selected free gift active.
+  // a product promotion discount, a selected free gift, or an auto-apply tier active.
   combinable_with_other_offers: boolean;
+  // When true, this row is a tier (e.g. "spend ₹699, get 10% off") — applied
+  // automatically once the cart subtotal crosses min_cart_total, no code typed. Shown in
+  // the cart drawer's progress bar instead of the Available Coupons carousel. Always
+  // applies regardless of combinable_with_other_offers (that flag only governs whether a
+  // manually-typed coupon can stack with a tier, not the reverse).
+  auto_apply: boolean;
   active: boolean;
   starts_at: string;
   ends_at: string;

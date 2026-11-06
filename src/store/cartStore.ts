@@ -18,6 +18,11 @@ interface CartState {
   setSelectedOfferType: (choice: OfferChoice | null) => void;
   couponCode: string | null;
   setCouponCode: (code: string | null) => void;
+  // Cart-drawer visibility — deliberately NOT persisted (see partialize below), so the
+  // drawer never auto-pops-open on a later visit just because it was left open.
+  isDrawerOpen: boolean;
+  openDrawer: () => void;
+  closeDrawer: () => void;
 }
 
 export const useCartStore = create<CartState>()(
@@ -29,6 +34,9 @@ export const useCartStore = create<CartState>()(
       setSelectedOfferType: (choice) => set({ selectedOfferType: choice }),
       couponCode: null,
       setCouponCode: (code) => set({ couponCode: code }),
+      isDrawerOpen: false,
+      openDrawer: () => set({ isDrawerOpen: true }),
+      closeDrawer: () => set({ isDrawerOpen: false }),
 
       addToCart: (product: Product) => {
         set((state) => {
@@ -43,6 +51,7 @@ export const useCartStore = create<CartState>()(
           return {
             cart: newCart,
             total: newCart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+            isDrawerOpen: true,
           };
         });
       },
@@ -76,6 +85,13 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'amigo-cart',
+      // isDrawerOpen is UI-only, session-scoped — persisting it would reopen the drawer
+      // on every future visit if the shopper last left the site with it open.
+      partialize: (state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { isDrawerOpen, ...persisted } = state;
+        return persisted;
+      },
     }
   )
 );

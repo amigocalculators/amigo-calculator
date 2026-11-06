@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { CouponCode } from '@/types';
-import { getCouponStatus, CouponStatus } from '@/lib/couponCodes';
-import { Plus, Pencil, Trash2, X, Check, Ticket } from 'lucide-react';
+import { getCouponStatus, CouponStatus, describeDiscount } from '@/lib/couponCodes';
+import { Plus, Pencil, Trash2, X, Check, Ticket, Sparkles } from 'lucide-react';
 
 function toDatetimeLocalValue(iso: string): string {
   const d = new Date(iso);
@@ -19,10 +19,6 @@ const STATUS_STYLE: Record<CouponStatus, { label: string; color: string }> = {
   ended: { label: 'Ended', color: 'bg-gray-100 text-gray-400' },
 };
 
-function describeDiscount(c: Pick<CouponCode, 'discount_type' | 'discount_value'>): string {
-  return c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`;
-}
-
 export default function CouponsManager({ initialCoupons }: { initialCoupons: CouponCode[] }) {
   const [coupons, setCoupons] = useState<CouponCode[]>(initialCoupons);
   const [showForm, setShowForm] = useState(false);
@@ -33,6 +29,7 @@ export default function CouponsManager({ initialCoupons }: { initialCoupons: Cou
   const [discountValue, setDiscountValue] = useState<number | ''>('');
   const [minCartTotal, setMinCartTotal] = useState<number | ''>(0);
   const [combinable, setCombinable] = useState(false);
+  const [autoApply, setAutoApply] = useState(false);
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [active, setActive] = useState(true);
@@ -49,6 +46,7 @@ export default function CouponsManager({ initialCoupons }: { initialCoupons: Cou
     setDiscountValue('');
     setMinCartTotal(0);
     setCombinable(false);
+    setAutoApply(false);
     setStartsAt('');
     setEndsAt('');
     setActive(true);
@@ -63,6 +61,7 @@ export default function CouponsManager({ initialCoupons }: { initialCoupons: Cou
     setDiscountValue(coupon.discount_value);
     setMinCartTotal(coupon.min_cart_total);
     setCombinable(coupon.combinable_with_other_offers);
+    setAutoApply(coupon.auto_apply);
     setStartsAt(toDatetimeLocalValue(coupon.starts_at));
     setEndsAt(toDatetimeLocalValue(coupon.ends_at));
     setActive(coupon.active);
@@ -102,6 +101,7 @@ export default function CouponsManager({ initialCoupons }: { initialCoupons: Cou
       discount_value: discountValue,
       min_cart_total: minCartTotal === '' ? 0 : minCartTotal,
       combinable_with_other_offers: combinable,
+      auto_apply: autoApply,
       starts_at: new Date(startsAt).toISOString(),
       ends_at: new Date(endsAt).toISOString(),
       active,
@@ -166,6 +166,7 @@ export default function CouponsManager({ initialCoupons }: { initialCoupons: Cou
             <thead>
               <tr className="text-left text-gray-500 bg-gray-50 border-b">
                 <th className="px-4 py-3 font-medium">Code</th>
+                <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Discount</th>
                 <th className="px-4 py-3 font-medium">Min. Cart</th>
                 <th className="px-4 py-3 font-medium">Combinable</th>
@@ -183,9 +184,16 @@ export default function CouponsManager({ initialCoupons }: { initialCoupons: Cou
                     <td className="px-4 py-3 font-medium">
                       <span className="flex items-center gap-1.5"><Ticket className="w-3.5 h-3.5 text-orange-500" />{coupon.code}</span>
                     </td>
+                    <td className="px-4 py-3">
+                      {coupon.auto_apply ? (
+                        <span className="flex items-center gap-1 text-xs font-medium text-purple-700 bg-purple-50 px-2 py-1 rounded-full w-fit"><Sparkles className="w-3 h-3" />Tier (auto)</span>
+                      ) : (
+                        <span className="text-xs font-medium text-gray-500">Coupon</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{describeDiscount(coupon)}</td>
                     <td className="px-4 py-3 text-gray-600">₹{coupon.min_cart_total.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-gray-600">{coupon.combinable_with_other_offers ? 'Yes' : 'No'}</td>
+                    <td className="px-4 py-3 text-gray-600">{coupon.auto_apply ? '—' : coupon.combinable_with_other_offers ? 'Yes' : 'No'}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">
                       {new Date(coupon.starts_at).toLocaleString('en-IN')} → {new Date(coupon.ends_at).toLocaleString('en-IN')}
                     </td>
@@ -226,12 +234,20 @@ export default function CouponsManager({ initialCoupons }: { initialCoupons: Cou
               <button onClick={() => setShowForm(false)}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
+              <div className="flex items-start gap-2 bg-purple-50 border border-purple-100 rounded-lg p-3">
+                <input type="checkbox" id="autoApply" checked={autoApply} onChange={(e) => setAutoApply(e.target.checked)} className="w-4 h-4 mt-0.5" />
+                <label htmlFor="autoApply" className="text-sm text-gray-700">
+                  <span className="font-medium flex items-center gap-1"><Sparkles className="w-3.5 h-3.5 text-purple-600" />Auto-apply tier</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">No code needed — applies automatically once the cart subtotal crosses the minimum below. Shown in the cart drawer&apos;s progress bar instead of the coupon carousel, and always applies regardless of the &quot;Combinable&quot; setting.</span>
+                </label>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
                 <input
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="e.g. WELCOME10"
+                  placeholder={autoApply ? 'e.g. TIER_10_OFF — internal only, never shown to customers' : 'e.g. WELCOME10'}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
@@ -295,12 +311,16 @@ export default function CouponsManager({ initialCoupons }: { initialCoupons: Cou
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="combinable" checked={combinable} onChange={(e) => setCombinable(e.target.checked)} className="w-4 h-4" />
-                <label htmlFor="combinable" className="text-sm font-medium text-gray-700">
-                  Combinable with other offers (flash sale / product promotion / free gift)
-                </label>
-              </div>
+              {autoApply ? (
+                <p className="text-xs text-gray-500 italic">Tiers always apply automatically regardless of other offers — the &quot;Combinable&quot; setting is inert for tier rows.</p>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="combinable" checked={combinable} onChange={(e) => setCombinable(e.target.checked)} className="w-4 h-4" />
+                  <label htmlFor="combinable" className="text-sm font-medium text-gray-700">
+                    Combinable with other offers (flash sale / product promotion / free gift / auto-apply tier)
+                  </label>
+                </div>
+              )}
 
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="couponActive" checked={active} onChange={(e) => setActive(e.target.checked)} className="w-4 h-4" />

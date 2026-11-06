@@ -21,6 +21,13 @@ export interface OrderPricingResult {
   // Total ₹ value of free units granted by per-product buy/get promotions this order.
   productPromotionDiscount: number;
   flashDiscount: number;
+  // The highest-threshold auto-apply tier the cart subtotal currently clears, and its ₹
+  // discount — see the `tiers` input below.
+  appliedTier: CouponCode | null;
+  tierDiscount: number;
+  // The next unmet tier (lowest min_cart_total the cart hasn't reached yet), for the cart
+  // drawer's "add ₹X more to unlock Y% off" progress bar. Null once every tier is met.
+  nextTier: CouponCode | null;
   couponDiscount: number;
   // 'below_minimum' | 'not_combinable' | null (null = applied, or no coupon given)
   couponRejectReason: string | null;
@@ -37,6 +44,10 @@ export interface OrderPricingInput {
   flashSale: FlashSale | null;
   flashEligible: boolean;
   coupon?: CouponCode | null;
+  // Auto-apply coupon_codes rows (auto_apply = true) — see src/lib/couponCodes.ts's
+  // getActiveCoupons. Defaults to none, so existing call sites are unaffected until they
+  // opt in by passing these.
+  tiers?: CouponCode[];
 }
 
 // The single source of truth for order totals — used identically by the cart/checkout
@@ -45,7 +56,7 @@ export interface OrderPricingInput {
 // cart *before* any per-product buy/get free-unit calc runs, so the same physical unit
 // can never absorb both discounts at once.
 export function calculateOrderPricing(input: OrderPricingInput): OrderPricingResult {
-  const { cart: rawCart, productPromotions, eligibleGiftPromotions, selectedOfferType, flashSale, flashEligible, coupon = null } = input;
+  const { cart: rawCart, productPromotions, eligibleGiftPromotions, selectedOfferType, flashSale, flashEligible, coupon = null, tiers = [] } = input;
 
   // Second flash-sale phase: once claim slots are gone, an admin-configured %-off can
   // apply to every unit of that product for everyone until a configured end time — a
@@ -126,15 +137,37 @@ export function calculateOrderPricing(input: OrderPricingInput): OrderPricingRes
   const flashDiscount = flashLine ? flashLine.price - flashSale!.sale_price : 0;
   const runningTotal = subtotal - productPromotionDiscount - flashDiscount;
 
-  // Coupon applies last, on top of (never instead of) the flash/product/gift discounts
-  // already resolved above — checked against the cart's pre-discount subtotal for the
-  // minimum, but computed off the already-discounted runningTotal.
+  // Auto-apply tiers (e.g. "spend ₹699, get 10% off") are never something the shopper
+  // chose to stack, so unlike a coupon they're never suppressed by anyone else's
+  // combinable_with_other_offers — they just always apply once their min_cart_total is
+  // cleared. Checked against the pre-discount subtotal (same basis a coupon's minimum
+  // uses), highest threshold met wins; the lowest unmet one drives the progress bar.
+  const metTiers = tiers.filter((t) => subtotal >= t.min_cart_total);
+  const unmetTiers = tiers.filter((t) => subtotal < t.min_cart_total);
+  const appliedTier = metTiers.length > 0
+    ? metTiers.reduce((best, t) => (t.min_cart_total > best.min_cart_total ? t : best))
+    : null;
+  const nextTier = unmetTiers.length > 0
+    ? unmetTiers.reduce((next, t) => (t.min_cart_total < next.min_cart_total ? t : next))
+    : null;
+  const tierDiscount = appliedTier
+    ? (appliedTier.discount_type === 'flat'
+      ? Math.min(appliedTier.discount_value, runningTotal)
+      : runningTotal * (appliedTier.discount_value / 100))
+    : 0;
+
+  // Coupon applies last, on top of (never instead of) the flash/product/gift/tier
+  // discounts already resolved above — checked against the cart's pre-discount subtotal
+  // for the minimum, but computed off the already-discounted runningTotal. A coupon and
+  // an active tier are summed, not compounded (two independent "extra N% off the same
+  // running total" discounts), so the displayed "Extra N% OFF" always matches what's
+  // actually charged.
   let couponDiscount = 0;
   let couponRejectReason: string | null = null;
   if (coupon) {
     if (subtotal < coupon.min_cart_total) {
       couponRejectReason = 'below_minimum';
-    } else if (!coupon.combinable_with_other_offers && (flashDiscount > 0 || productPromotionDiscount > 0 || giftItem !== null)) {
+    } else if (!coupon.combinable_with_other_offers && (flashDiscount > 0 || productPromotionDiscount > 0 || giftItem !== null || tierDiscount > 0)) {
       couponRejectReason = 'not_combinable';
     } else {
       couponDiscount = coupon.discount_type === 'flat'
@@ -143,8 +176,8 @@ export function calculateOrderPricing(input: OrderPricingInput): OrderPricingRes
     }
   }
 
-  const discount = productPromotionDiscount + flashDiscount + couponDiscount;
+  const discount = productPromotionDiscount + flashDiscount + tierDiscount + couponDiscount;
   const total = Math.max(0, subtotal - discount);
 
-  return { lines, giftItem, subtotal, productPromotionDiscount, flashDiscount, couponDiscount, couponRejectReason, discount, total, offerChoice };
+  return { lines, giftItem, subtotal, productPromotionDiscount, flashDiscount, appliedTier, tierDiscount, nextTier, couponDiscount, couponRejectReason, discount, total, offerChoice };
 }

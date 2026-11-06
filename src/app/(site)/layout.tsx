@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ContactFormWrapper from '@/components/ContactFormWrapper';
+import CartDrawer from '@/components/CartDrawer';
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -16,6 +17,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <main className="flex-grow">{children}</main>
       <Footer />
       <ContactFormWrapper />
+      <CartDrawer />
     </>
   );
 }

@@ -5,7 +5,7 @@ import { getActiveGiftPromotions } from '@/lib/promotions';
 import { getProductPromotions } from '@/lib/productPromotions';
 import { calculateOrderPricing } from '@/lib/orderPricing';
 import { isFlashSaleLive, isSoldOutDiscountActive } from '@/lib/flashSale';
-import { getCouponByCode } from '@/lib/couponCodes';
+import { getCouponByCode, getActiveCoupons } from '@/lib/couponCodes';
 import { CartItem, FlashSale } from '@/types';
 
 const razorpay = new Razorpay({
@@ -62,12 +62,14 @@ export async function POST(req: NextRequest) {
       return { ...product, quantity: line.quantity };
     });
 
-    const [productPromotions, eligibleGiftPromotions, { data: flashSaleRow }] = await Promise.all([
+    const [productPromotions, eligibleGiftPromotions, { data: flashSaleRow }, activeCoupons] = await Promise.all([
       getProductPromotions(supabase, ids),
       getActiveGiftPromotions(supabase),
       supabase.from('flash_sales').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      getActiveCoupons(supabase),
     ]);
     const flashSale = (flashSaleRow as FlashSale | null) ?? null;
+    const tiers = activeCoupons.filter((c) => c.auto_apply);
 
     // Slot eligibility is decided atomically right here, at the moment the price is
     // locked in — not by reading claimed_count and hoping it's still accurate. Reading
@@ -129,6 +131,7 @@ export async function POST(req: NextRequest) {
       flashSale,
       flashEligible,
       coupon,
+      tiers,
     });
 
     // Only persist the code if it actually ended up applied — a rejected (e.g.
@@ -201,6 +204,7 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       flash_sale_id: flashApplied ? flashSale!.id : null,
       coupon_code: appliedCouponCode,
+      tier_code: pricing.appliedTier?.code ?? null,
     });
 
     if (insertError) {

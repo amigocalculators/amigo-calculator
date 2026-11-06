@@ -36,7 +36,7 @@ interface Props {
 
 export default function ProductDetailClient({ product, relatedProducts, flashSale, flashAlreadyClaimed, productPromotions }: Props) {
   const router = useRouter();
-  const { addToCart, cart } = useCartStore();
+  const { addToCart, cart, openDrawer } = useCartStore();
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [showShareOptions, setShowShareOptions] = useState(false);
@@ -118,7 +118,6 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
         onClaimed: () => {
           addToCart(product);
           setAlreadyClaimed(false);
-          toast.success(`${product.name} added to cart at the flash price!`);
         },
         onError: (message) => toast.error(message),
       });
@@ -136,10 +135,7 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
       isLoggedIn: !!loggedIn,
       productPath: `/product/${product.id}`,
       onLoginRequired: (url) => router.push(url),
-      onClaimed: () => {
-        addToCart(product);
-        toast.success(`${product.name} added to cart at the flash price!`);
-      },
+      onClaimed: () => addToCart(product),
       onError: (message) => toast.error(message),
     });
     setClaiming(false);
@@ -164,7 +160,6 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
 
   const handleAddToCart = () => {
     for (let i = 0; i < quantity; i++) addToCart(product);
-    toast.success(`${quantity > 1 ? `${quantity} × ` : ''}${product.name} added to cart`);
   };
 
   const handleShare = (platform: string) => {
@@ -390,7 +385,7 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                 {/* Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 mb-6">
                   <button
-                    onClick={isInCart ? () => router.push('/cart') : showClaim ? handleClaimClick : handleAddToCart}
+                    onClick={isInCart ? openDrawer : showClaim ? handleClaimClick : handleAddToCart}
                     disabled={!product.inStock || claiming || flashComingSoon}
                     className={`py-3 px-6 rounded-lg flex items-center justify-center gap-2 disabled:opacity-60 ${
                       isInCart ? 'bg-orange-400 hover:bg-orange-500' : showClaim ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
@@ -555,14 +550,12 @@ export default function ProductDetailClient({ product, relatedProducts, flashSal
                             isLoggedIn: !!loggedIn,
                             productPath: `/product/${related.id}`,
                             onLoginRequired: (url) => router.push(url),
-                            onClaimed: () => { addToCart(related); toast.success(`${related.name} added to cart at the flash price!`); router.push(`/product/${related.id}`); },
+                            onClaimed: () => addToCart(related),
                             onError: (message) => toast.error(message),
                           });
                           return;
                         }
                         addToCart(related);
-                        toast.success(`${related.name} added to cart`);
-                        router.push(`/product/${related.id}`);
                       }}
                       className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
                     >

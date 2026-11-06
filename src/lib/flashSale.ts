@@ -113,10 +113,8 @@ export async function handleAdSlideClick(
     productPath: `/product/${flashProduct.id}`,
     goToCart: true,
     onLoginRequired: (url) => router.push(url),
-    onClaimed: () => {
-      addToCart(flashProduct);
-      router.push('/cart');
-    },
+    // addToCart opens the cart drawer itself (see cartStore.ts) — no navigation needed.
+    onClaimed: () => addToCart(flashProduct),
     onError,
   });
 }

@@ -119,16 +119,12 @@ export default function ProductsClient({ products, productPromotions, initialFla
         isLoggedIn: loggedIn,
         productPath: `/product/${product.id}`,
         onLoginRequired: (url) => router.push(url),
-        onClaimed: () => {
-          addToCart(product);
-          toast.success(`${product.name} added to cart at the flash price!`);
-        },
+        onClaimed: () => addToCart(product),
         onError: (message) => toast.error(message),
       });
       return;
     }
     addToCart(product);
-    toast.success(`${product.name} added to cart`);
   };
 
   const toggleSection = (section: string) => {
