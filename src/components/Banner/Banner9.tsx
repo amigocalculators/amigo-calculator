@@ -54,6 +54,7 @@ const Banner9 = ({ products, currentProductId }: Banner9Props) => {
                     </span>
                   </h3>
                 </Link>
+                <p className="text-xs font-semibold text-amber-600">🎁 Free Gift with Every Order</p>
                 <div className="flex justify-between items-center mt-4">
                   <span className="text-xl font-semibold text-gray-700">
                     ₹{product.price.toFixed(2)}

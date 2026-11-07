@@ -414,6 +414,12 @@ export default function CheckoutPage() {
                 <Package className="w-5 h-5" />Order Summary
               </h2>
 
+              <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-2 flex items-center justify-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/Image/Banner/diwali-gift-pens.png" alt="Gift pens" className="w-10 h-10 object-contain shrink-0" />
+                <p className="text-sm font-semibold text-amber-700">Diwali Special: Free Gift with Every Order!</p>
+              </div>
+
               {optionsCount > 1 && (
                 <div className="mb-6 border border-gray-200 rounded-xl p-4">
                   <p className="text-sm font-semibold mb-3">Choose one offer to apply:</p>

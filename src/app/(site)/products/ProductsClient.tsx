@@ -355,6 +355,7 @@ export default function ProductsClient({ products, productPromotions, initialFla
                         </h3>
                       </Link>
                       <hr className="card-divider" />
+                      <p className="text-xs font-semibold text-amber-600 pt-2">🎁 Free Gift with Every Order</p>
                       <div className="flex items-center justify-between pt-2">
                         <span className="text-[#112a46] text-2xl font-bold lg:text-xl lg:font-semibold font-roboto">
                           {isClaimableFlash(product) ? (
