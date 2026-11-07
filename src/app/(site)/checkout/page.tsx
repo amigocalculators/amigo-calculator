@@ -417,7 +417,7 @@ export default function CheckoutPage() {
               <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-2 flex items-center justify-center gap-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/Image/Banner/diwali-gift-pens.png" alt="Gift pens" className="w-10 h-10 object-contain shrink-0" />
-                <p className="text-sm font-semibold text-amber-700">Diwali Special: Free Gift with Every Order!</p>
+                <p className="text-sm font-semibold text-amber-700">Diwali Special: Assured Free Gift with Every Order!</p>
               </div>
 
               {optionsCount > 1 && (

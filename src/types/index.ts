@@ -16,6 +16,17 @@ export interface Product {
   };
   warranty?: string;
   highlights?: string[];
+  // Admin-editable placeholder rating shown until the product earns its first real
+  // one. See src/lib/productRating.ts and supabase/migration_020_product_ratings.sql.
+  dummy_rating?: number | string | null;
+  dummy_rating_count?: number | null;
+  // Admin-editable while in the dummy phase; see migration_021_product_top_rated_flag.sql.
+  dummy_top_rated?: boolean;
+  // Computed from product_ratings by a DB trigger -- never written directly.
+  real_rating_avg?: number | string | null;
+  real_rating_count?: number;
+  // Computed by the same trigger (top 5 by real rating) -- never written directly.
+  real_top_rated?: boolean;
 }
 
 export interface CartItem extends Product {

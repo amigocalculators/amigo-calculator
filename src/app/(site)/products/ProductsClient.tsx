@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getFlashSaleStatus, isFlashSaleLive, handleFlashClaim, isSoldOutDiscountActive, getSoldOutDiscountPrice } from '@/lib/flashSale';
 import { getActiveProductPromotion, getProductPromotionPrice, getProductPromotionLabel } from '@/lib/productPromotions';
 import FlashCountdown from '@/components/FlashCountdown';
+import ProductRatingBadge from '@/components/ProductRatingBadge';
 import {
   Search,
   X,
@@ -344,6 +345,7 @@ export default function ProductsClient({ products, productPromotions, initialFla
                           {getProductPromotionLabel(promo)} · <FlashCountdown target={promo.ends_at} />
                         </span>
                       )}
+                      <ProductRatingBadge product={product} className="absolute bottom-4 right-4 z-10" />
                     </Link>
                     <div className="p-6">
                       <p className="font-mono text-gray-600 text-xl font-bold lg:text-[18px] lg:font-semibold">
@@ -355,7 +357,6 @@ export default function ProductsClient({ products, productPromotions, initialFla
                         </h3>
                       </Link>
                       <hr className="card-divider" />
-                      <p className="text-xs font-semibold text-amber-600 pt-2">🎁 Free Gift with Every Order</p>
                       <div className="flex items-center justify-between pt-2">
                         <span className="text-[#112a46] text-2xl font-bold lg:text-xl lg:font-semibold font-roboto">
                           {isClaimableFlash(product) ? (

@@ -21,13 +21,32 @@ type Product = {
   specifications: Record<string, string>;
   warranty: string | null;
   highlights: string[];
+  dummy_rating: number | null;
+  dummy_rating_count: number | null;
+  dummy_top_rated: boolean;
+  // Trigger-maintained once a real rating comes in -- read-only here, shown as an
+  // info note in the edit form, never part of the save payload.
+  real_rating_avg: number | null;
+  real_rating_count: number;
+  real_top_rated: boolean;
 };
 
-const emptyProduct: Omit<Product, 'id'> = {
+type ProductForm = Omit<Product, 'id' | 'real_rating_avg' | 'real_rating_count' | 'real_top_rated'>;
+
+const emptyProduct: ProductForm = {
   name: '', price: 0, prevprice: null, image: '', images: [], description: '',
   category: '', rating: '', reviews: 0, in_stock: true, features: [],
-  specifications: {}, warranty: '', highlights: [],
+  specifications: {}, warranty: '', highlights: [], dummy_rating: null, dummy_rating_count: null,
+  dummy_top_rated: false,
 };
+
+// New products get a random, plausible placeholder rating pre-filled (editable
+// before saving) so admins don't have to invent a number for every product --
+// mirrors the backfill in supabase/migration_020_product_ratings.sql.
+const randomDummyRating = () => ({
+  dummy_rating: Math.round((4.3 + Math.random() * 0.6) * 10) / 10,
+  dummy_rating_count: Math.floor(35 + Math.random() * 400),
+});
 
 function ImageUploadField({ label, value, onChange, bucket }: {
   label: string; value: string; onChange: (url: string) => void; bucket: string;
@@ -131,7 +150,7 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
-  const [form, setForm] = useState<Omit<Product, 'id'>>(emptyProduct);
+  const [form, setForm] = useState<ProductForm>(emptyProduct);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [search, setSearch] = useState('');
@@ -144,7 +163,7 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
 
   const openCreate = () => {
     setEditing(null);
-    setForm(emptyProduct);
+    setForm({ ...emptyProduct, ...randomDummyRating() });
     setFeaturesInput('');
     setHighlightsInput('');
     setSpecsInput('');
@@ -159,6 +178,8 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
       category: product.category ?? '', rating: product.rating ?? '', reviews: product.reviews,
       in_stock: product.in_stock, features: product.features, specifications: product.specifications,
       warranty: product.warranty ?? '', highlights: product.highlights,
+      dummy_rating: product.dummy_rating, dummy_rating_count: product.dummy_rating_count,
+      dummy_top_rated: product.dummy_top_rated,
     });
     setFeaturesInput(product.features.join('\n'));
     setHighlightsInput(product.highlights.join('\n'));
@@ -365,6 +386,45 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Dummy Star Rating (0–5)</label>
+                  <input type="number" step="0.1" min="0" max="5" value={form.dummy_rating ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, dummy_rating: e.target.value ? Number(e.target.value) : null }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Dummy Rating Count</label>
+                  <input type="number" min="0" step="1" value={form.dummy_rating_count ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, dummy_rating_count: e.target.value ? Number(e.target.value) : null }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+              </div>
+              {(!editing || editing.real_rating_count === 0) && (
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="dummy_top_rated" checked={form.dummy_top_rated}
+                    onChange={(e) => setForm((f) => ({ ...f, dummy_top_rated: e.target.checked }))} className="w-4 h-4" />
+                  <label htmlFor="dummy_top_rated" className="text-sm font-medium text-gray-700">
+                    Show &quot;Top Rated&quot; badge (while on dummy rating)
+                  </label>
+                </div>
+              )}
+              <p className="text-xs text-gray-500 -mt-2">
+                The star rating above always shows on the storefront until the product gets its first real customer rating.
+                The &quot;Top Rated&quot; label is separate -- check it only for the handful of products you want to
+                highlight.
+              </p>
+              {editing && editing.real_rating_count > 0 && (
+                <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
+                  This product has real customer ratings now ({Number(editing.real_rating_avg).toFixed(2)}★ from{' '}
+                  {editing.real_rating_count} rating{editing.real_rating_count === 1 ? '' : 's'}) and permanently shows
+                  those instead of the dummy rating above. The &quot;Top Rated&quot; label is now automatic --{' '}
+                  {editing.real_top_rated
+                    ? 'it IS currently showing, because this is one of the 5 highest-rated real-rated products.'
+                    : "it is NOT currently showing, because this isn't in the top 5 highest-rated real-rated products."}
+                </p>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Features (one per line)</label>

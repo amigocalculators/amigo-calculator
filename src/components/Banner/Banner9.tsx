@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { Product } from '@/types';
+import ProductRatingBadge from '@/components/ProductRatingBadge';
 
 interface Banner9Props {
   products: Product[];
@@ -45,6 +46,7 @@ const Banner9 = ({ products, currentProductId }: Banner9Props) => {
                   sizes="(max-width: 640px) 50vw, 25vw"
                   className="object-cover transform group-hover:scale-105 transition-transform duration-300"
                 />
+                <ProductRatingBadge product={product} className="absolute bottom-2 right-2 z-10 scale-90 origin-bottom-right" />
               </Link>
               <div className="p-2">
                 <Link href={`/product/${product.id}`}>
@@ -54,7 +56,6 @@ const Banner9 = ({ products, currentProductId }: Banner9Props) => {
                     </span>
                   </h3>
                 </Link>
-                <p className="text-xs font-semibold text-amber-600">🎁 Free Gift with Every Order</p>
                 <div className="flex justify-between items-center mt-4">
                   <span className="text-xl font-semibold text-gray-700">
                     ₹{product.price.toFixed(2)}

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Trash2 kept for when Delete Account UI below is re-enabled
-import { Package, XCircle, Loader2, LogOut, Trash2 } from 'lucide-react';
+import { Package, XCircle, Loader2, LogOut, Trash2, Star } from 'lucide-react';
 import { isWithinCancelWindow } from '@/lib/orderCancellation';
 
 type Order = {
@@ -22,6 +22,8 @@ type Order = {
 type Profile = { id: string; name: string | null; email: string | null; phone: string | null };
 
 const CANCELLABLE_STATUSES = ['confirmed', 'processing', 'delivered'];
+// Anything past checkout -- matches the gate enforced server-side in /api/ratings/submit.
+const RATABLE_STATUSES = ['confirmed', 'processing', 'shipped', 'delivered'];
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   confirmed: { label: 'Order Confirmed', color: 'bg-blue-100 text-blue-700' },
@@ -31,7 +33,65 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-700' },
 };
 
-function OrderCard({ order, onCancelled }: { order: Order; onCancelled: (id: string) => void }) {
+function RateProductButton({ orderId, productId, initialStars }: { orderId: string; productId: number; initialStars: number | null }) {
+  const [stars, setStars] = useState(initialStars);
+  const [hover, setHover] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async (value: number) => {
+    if (stars != null || submitting) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const res = await fetch('/api/ratings/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, product_id: productId, stars: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? 'Failed to submit rating');
+        return;
+      }
+      setStars(value);
+    } catch {
+      setError('Failed to submit rating');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (stars != null) {
+    return (
+      <div className="flex items-center gap-1 mt-1.5">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Star key={n} className={`w-3.5 h-3.5 ${n <= stars ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
+        ))}
+        <span className="text-xs text-gray-500 ml-1">Thanks for rating!</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1.5">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-gray-500">Rate this product:</span>
+        <div className="flex items-center gap-0.5" onMouseLeave={() => setHover(0)}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} type="button" disabled={submitting} onMouseEnter={() => setHover(n)} onClick={() => submit(n)}
+              className="disabled:opacity-50" aria-label={`Rate ${n} star${n === 1 ? '' : 's'}`}>
+              <Star className={`w-4 h-4 ${n <= hover ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
+            </button>
+          ))}
+        </div>
+      </div>
+      {error && <p className="text-xs text-red-600 mt-0.5">{error}</p>}
+    </div>
+  );
+}
+
+function OrderCard({ order, ratedMap, onCancelled }: { order: Order; ratedMap: Record<string, number>; onCancelled: (id: string) => void }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -77,15 +137,24 @@ function OrderCard({ order, onCancelled }: { order: Order; onCancelled: (id: str
 
         <div className="space-y-2 mb-4">
           {order.items.map((item, i) => (
-            <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-lg p-2.5">
-              {item.image && <img src={item.image} alt={item.name} className="w-10 h-10 object-cover rounded" />}
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-800">{item.name}</p>
-                <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+            <div key={i} className="bg-gray-50 rounded-lg p-2.5">
+              <div className="flex items-center gap-3">
+                {item.image && <img src={item.image} alt={item.name} className="w-10 h-10 object-cover rounded" />}
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-800">{item.name}</p>
+                  <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                </div>
+                <span className="text-sm font-medium text-gray-700">
+                  {item.price === 0 ? 'FREE' : `₹${(item.price * item.quantity).toFixed(2)}`}
+                </span>
               </div>
-              <span className="text-sm font-medium text-gray-700">
-                {item.price === 0 ? 'FREE' : `₹${(item.price * item.quantity).toFixed(2)}`}
-              </span>
+              {RATABLE_STATUSES.includes(order.status) && (
+                <RateProductButton
+                  orderId={order.id}
+                  productId={item.id}
+                  initialStars={ratedMap[`${order.id}:${item.id}`] ?? null}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -126,7 +195,7 @@ function OrderCard({ order, onCancelled }: { order: Order; onCancelled: (id: str
   );
 }
 
-export default function AccountOrdersClient({ profile, orders: initialOrders }: { profile: Profile; orders: Order[] }) {
+export default function AccountOrdersClient({ profile, orders: initialOrders, ratedMap }: { profile: Profile; orders: Order[]; ratedMap: Record<string, number> }) {
   const router = useRouter();
   const supabase = createClient();
   const [orders, setOrders] = useState(initialOrders);
@@ -183,7 +252,7 @@ export default function AccountOrdersClient({ profile, orders: initialOrders }: 
         ) : (
           <div className="space-y-4">
             {orders.map((order) => (
-              <OrderCard key={order.id} order={order} onCancelled={handleCancelled} />
+              <OrderCard key={order.id} order={order} ratedMap={ratedMap} onCancelled={handleCancelled} />
             ))}
           </div>
         )}

@@ -27,5 +27,16 @@ export default async function AccountOrdersPage() {
     ? await admin.from('orders').select('*').or(filters).order('created_at', { ascending: false })
     : { data: [] };
 
-  return <AccountOrdersClient profile={profile} orders={orders ?? []} />;
+  const orderIds = (orders ?? []).map((o) => o.id);
+  const { data: existingRatings } = orderIds.length
+    ? await admin.from('product_ratings').select('order_id, product_id, stars').in('order_id', orderIds)
+    : { data: [] };
+
+  // Keyed "orderId:productId" -> stars, so the client knows which items are already
+  // rated (and what they were rated) without re-deriving it from a separate fetch.
+  const ratedMap = Object.fromEntries(
+    (existingRatings ?? []).map((r) => [`${r.order_id}:${r.product_id}`, r.stars])
+  );
+
+  return <AccountOrdersClient profile={profile} orders={orders ?? []} ratedMap={ratedMap} />;
 }
