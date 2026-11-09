@@ -42,7 +42,10 @@ const getOfferLabel = (order: Order): string => {
   const giftLineItem = order.items.find((i) => i.id < 0);
   if (giftLineItem) return `Gift: ${giftLineItem.quantity}x ${giftLineItem.name}`;
   if (order.flash_sale_id) return 'Flash Sale';
-  if (Number(order.discount) > 0) return 'Buy 2 Get 1';
+  // A tier/coupon discount already has its own code shown in the Coupon Claimed column —
+  // only an unattributed discount (no gift, no flash, no tier, no coupon) is a real
+  // Buy 2 Get 1 product promotion.
+  if (!order.tier_code && !order.coupon_code && Number(order.discount) > 0) return 'Buy 2 Get 1';
   return '';
 };
 
@@ -63,6 +66,7 @@ type Order = {
   created_at: string;
   flash_sale_id: number | null;
   coupon_code: string | null;
+  tier_code: string | null;
 };
 
 // Single source of truth for the export column picker AND the CSV itself, so the
@@ -73,7 +77,7 @@ const EXPORT_COLUMNS: { key: string; label: string; getValue: (order: Order) => 
   { key: 'phone', label: 'Phone', getValue: (o) => o.customer_phone },
   { key: 'items', label: 'Items', getValue: (o) => o.items.filter((i) => i.id >= 0).map((i) => `${i.name} x${i.quantity}`).join('; ') },
   { key: 'offer', label: 'Offer Claimed', getValue: (o) => getOfferLabel(o) },
-  { key: 'coupon', label: 'Coupon Claimed', getValue: (o) => o.coupon_code ?? '' },
+  { key: 'coupon', label: 'Coupon Claimed', getValue: (o) => o.coupon_code ?? o.tier_code ?? '' },
   { key: 'subtotal', label: 'Subtotal', getValue: (o) => Number(o.subtotal).toFixed(2) },
   { key: 'discount', label: 'Discount', getValue: (o) => Number(o.discount).toFixed(2) },
   { key: 'total', label: 'Total', getValue: (o) => Number(o.total).toFixed(2) },
@@ -405,7 +409,7 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
                           <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
                             ⚡ Flash Sale
                           </span>
-                        ) : Number(order.discount) > 0 ? (
+                        ) : !order.tier_code && !order.coupon_code && Number(order.discount) > 0 ? (
                           <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
                             🎉 Buy 2 Get 1
                           </span>
@@ -417,6 +421,10 @@ export default function OrdersTable({ initialOrders }: { initialOrders: Order[] 
                         {order.coupon_code ? (
                           <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
                             🏷️ {order.coupon_code}
+                          </span>
+                        ) : order.tier_code ? (
+                          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                            🏷️ {order.tier_code}
                           </span>
                         ) : (
                           <span className="text-gray-400 text-xs">—</span>
