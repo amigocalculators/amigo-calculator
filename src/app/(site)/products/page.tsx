@@ -23,7 +23,7 @@ export default async function ProductsPage() {
   // the sale product's badge/sort position is correct on first paint instead of
   // popping in ~1s later once a client-side fetch resolves.
   const [{ data }, { data: productPromotions }, { data: flashSaleRow }] = await Promise.all([
-    supabase.from('products').select('*').order('id', { ascending: true }),
+    supabase.from('products').select('*').eq('is_active', true).order('id', { ascending: true }),
     supabase.from('product_promotions').select('*'),
     supabase.from('flash_sales').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ]);

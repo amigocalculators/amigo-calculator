@@ -11,7 +11,7 @@ export const revalidate = 30;
 export default async function Home() {
   const supabase = createAdminClient();
   const [{ data }, { data: promoData }, { data: flashSaleRow }] = await Promise.all([
-    supabase.from('products').select('*').order('id', { ascending: true }),
+    supabase.from('products').select('*').eq('is_active', true).order('id', { ascending: true }),
     supabase.from('promotions').select('*').eq('active', true).order('created_at', { ascending: false }),
     supabase.from('flash_sales').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ]);

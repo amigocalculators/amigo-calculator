@@ -16,6 +16,7 @@ CREATE TABLE products (
   rating TEXT,
   reviews INTEGER DEFAULT 0,
   in_stock BOOLEAN DEFAULT true,
+  is_active BOOLEAN NOT NULL DEFAULT true,
   features TEXT[] DEFAULT '{}',
   specifications JSONB DEFAULT '{}',
   warranty TEXT,

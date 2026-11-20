@@ -21,6 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .from('products')
     .select('name, description, image')
     .eq('id', Number(id))
+    .eq('is_active', true)
     .single();
 
   if (!data) return { title: 'Product Not Found' };
@@ -48,6 +49,7 @@ export default async function ProductDetailPage({ params }: Props) {
     .from('products')
     .select('*')
     .eq('id', Number(id))
+    .eq('is_active', true)
     .single();
 
   if (error || !data) notFound();
@@ -58,6 +60,7 @@ export default async function ProductDetailPage({ params }: Props) {
     .from('products')
     .select('*')
     .neq('id', Number(id))
+    .eq('is_active', true)
     .limit(4);
 
   const relatedProducts = (relatedData ?? []).map((p) => ({ ...p, inStock: p.in_stock }));

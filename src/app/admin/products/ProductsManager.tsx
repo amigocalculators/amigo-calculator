@@ -17,6 +17,7 @@ type Product = {
   rating: string | null;
   reviews: number;
   in_stock: boolean;
+  is_active: boolean;
   features: string[];
   specifications: Record<string, string>;
   warranty: string | null;
@@ -35,7 +36,7 @@ type ProductForm = Omit<Product, 'id' | 'real_rating_avg' | 'real_rating_count' 
 
 const emptyProduct: ProductForm = {
   name: '', price: 0, prevprice: null, image: '', images: [], description: '',
-  category: '', rating: '', reviews: 0, in_stock: true, features: [],
+  category: '', rating: '', reviews: 0, in_stock: true, is_active: true, features: [],
   specifications: {}, warranty: '', highlights: [], dummy_rating: null, dummy_rating_count: null,
   dummy_top_rated: false,
 };
@@ -145,6 +146,7 @@ function MultiImageUpload({ images, onChange, bucket }: {
 }
 
 type StockFilter = 'all' | 'in' | 'out';
+type VisibilityFilter = 'all' | 'visible' | 'hidden';
 
 export default function ProductsManager({ initialProducts }: { initialProducts: Product[] }) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -155,6 +157,7 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
+  const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
   const supabase = createClient();
 
   const [featuresInput, setFeaturesInput] = useState('');
@@ -176,7 +179,7 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
       name: product.name, price: product.price, prevprice: product.prevprice,
       image: product.image, images: product.images, description: product.description ?? '',
       category: product.category ?? '', rating: product.rating ?? '', reviews: product.reviews,
-      in_stock: product.in_stock, features: product.features, specifications: product.specifications,
+      in_stock: product.in_stock, is_active: product.is_active, features: product.features, specifications: product.specifications,
       warranty: product.warranty ?? '', highlights: product.highlights,
       dummy_rating: product.dummy_rating, dummy_rating_count: product.dummy_rating_count,
       dummy_top_rated: product.dummy_top_rated,
@@ -242,7 +245,8 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
       (p.category ?? '').toLowerCase().includes(q) ||
       String(p.price).includes(q);
     const matchesStock = stockFilter === 'all' || (stockFilter === 'in' ? p.in_stock : !p.in_stock);
-    return matchesSearch && matchesStock;
+    const matchesVisibility = visibilityFilter === 'all' || (visibilityFilter === 'visible' ? p.is_active : !p.is_active);
+    return matchesSearch && matchesStock && matchesVisibility;
   });
 
   return (
@@ -268,6 +272,15 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
             <option value="in">In Stock</option>
             <option value="out">Out of Stock</option>
           </select>
+          <select
+            value={visibilityFilter}
+            onChange={(e) => setVisibilityFilter(e.target.value as VisibilityFilter)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+          >
+            <option value="all">All Visibility</option>
+            <option value="visible">Visible</option>
+            <option value="hidden">Hidden</option>
+          </select>
         </div>
         <button onClick={openCreate} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium whitespace-nowrap">
           <Plus className="w-4 h-4" /> Add Product
@@ -287,6 +300,7 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
                 <th className="px-4 py-3 font-medium">Price</th>
                 <th className="px-4 py-3 font-medium">Category</th>
                 <th className="px-4 py-3 font-medium">Stock</th>
+                <th className="px-4 py-3 font-medium">Visibility</th>
                 <th className="px-4 py-3 font-medium">Actions</th>
               </tr>
             </thead>
@@ -306,6 +320,11 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.in_stock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {p.in_stock ? 'In Stock' : 'Out of Stock'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+                      {p.is_active ? 'Visible' : 'Hidden'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -449,6 +468,11 @@ export default function ProductsManager({ initialProducts }: { initialProducts: 
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="in_stock" checked={form.in_stock} onChange={(e) => setForm((f) => ({ ...f, in_stock: e.target.checked }))} className="w-4 h-4" />
                 <label htmlFor="in_stock" className="text-sm font-medium text-gray-700">In Stock</label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="is_active" checked={form.is_active} onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))} className="w-4 h-4" />
+                <label htmlFor="is_active" className="text-sm font-medium text-gray-700">Visible on Website</label>
               </div>
             </div>
             <div className="flex justify-end gap-3 p-6 border-t">

@@ -12,6 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { data: products } = await supabase
     .from('products')
     .select('id')
+    .eq('is_active', true)
     .order('id', { ascending: true });
 
   const staticRoutes: MetadataRoute.Sitemap = [

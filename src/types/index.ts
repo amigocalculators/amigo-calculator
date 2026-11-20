@@ -10,6 +10,7 @@ export interface Product {
   rating?: string;
   reviews?: number;
   inStock?: boolean;
+  isActive?: boolean;
   features?: string[];
   specifications?: {
     [key: string]: string;
