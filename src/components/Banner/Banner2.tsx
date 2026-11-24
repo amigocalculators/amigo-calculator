@@ -16,6 +16,7 @@ const Banner2 = ({ products }: { products: Product[] }) => {
   return (
     <>
       <div className="w-full pb-4">
+        {/* Students' Top Choice banner — commented out in favor of the Diwali banner below.
         <div className="hidden md:block w-full h-[500px] relative">
           <Image
             src="/Image/Banner/Home1.jpg"
@@ -33,7 +34,7 @@ const Banner2 = ({ products }: { products: Product[] }) => {
           className="block md:hidden w-full h-auto object-cover"
           priority
         />
-        {/* Diwali festive banner — commented out, restored the Students' Top Choice banner above.
+        */}
         <Image
           src="/Image/Banner/diwali-banner.jpg"
           alt="Amigo Calculators — Happy Diwali Festive Deals on Writing Pads & Calculators"
@@ -43,7 +44,6 @@ const Banner2 = ({ products }: { products: Product[] }) => {
           unoptimized
           priority
         />
-        */}
       </div>
 
       <Banner9 products={products} />
