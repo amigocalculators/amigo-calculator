@@ -4,7 +4,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ContactFormWrapper from '@/components/ContactFormWrapper';
 import CartDrawer from '@/components/CartDrawer';
-import DiwaliGiftPopup from '@/components/DiwaliGiftPopup';
+// import DiwaliGiftPopup from '@/components/DiwaliGiftPopup';
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -19,7 +19,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <Footer />
       <ContactFormWrapper />
       <CartDrawer />
-      <DiwaliGiftPopup />
+      {/* <DiwaliGiftPopup /> */}
     </>
   );
 }
