@@ -49,7 +49,7 @@ const Banner2 = ({ products }: { products: Product[] }) => {
       <Banner9 products={products} />
 
       <div className="w-full pb-4">
-        {/* Desktop Banner */}
+        {/* Desktop Banner — commented out.
         <div className="hidden md:block w-full h-[600px] relative">
           <Image
             src="/Image/Banner/Home2.jpg"
@@ -58,6 +58,7 @@ const Banner2 = ({ products }: { products: Product[] }) => {
             className="object-cover"
           />
         </div>
+        */}
         {/* Mobile Banner */}
         <div className="block md:hidden w-full h-[300px] relative">
           <Image
